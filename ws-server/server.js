@@ -90,9 +90,10 @@ app.get("/comments", async (req, res) => {
   if (!pool) return res.status(500).json({ error: "DB not configured" });
 
   try {
+    // ✅ FIX timezone hiển thị: ép về Asia/Ho_Chi_Minh (+07)
     const { rows } = await pool.query(
       `select id, username, text, heart,
-              to_char(created_at, 'DD/MM/YYYY HH24:MI:SS') as date
+              to_char(created_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'DD/MM/YYYY HH24:MI:SS') as date
        from comments
        order by id desc
        limit 200`
@@ -114,11 +115,12 @@ app.post("/comments", async (req, res) => {
     if (!username) return res.status(400).json({ error: "Vui lòng nhập nickname" });
     if (!text) return res.status(400).json({ error: "Vui lòng nhập nội dung góp ý" });
 
+    // ✅ FIX timezone hiển thị: ép về Asia/Ho_Chi_Minh (+07) cho returning date
     const { rows } = await pool.query(
       `insert into comments (username, text)
        values ($1, $2)
        returning id, username, text, heart,
-                 to_char(created_at, 'DD/MM/YYYY HH24:MI:SS') as date`,
+                 to_char(created_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'DD/MM/YYYY HH24:MI:SS') as date`,
       [username.slice(0, 50), text.slice(0, 1000)]
     );
 
