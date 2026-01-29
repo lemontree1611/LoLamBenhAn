@@ -1,30 +1,93 @@
 // ws-server/server.js
-// WebSocket server (ws thuần) cho tính năng chia sẻ realtime
-// Rooms được lưu trong RAM (phục vụ demo/test). Restart sẽ mất state.
+// WebSocket + HTTP API (Gemini)
+// Chạy tốt trên Render
 
 const http = require("http");
 const WebSocket = require("ws");
+const express = require("express");
+const cors = require("cors");
 
 const PORT = process.env.PORT || 10000;
 
-const server = http.createServer((req, res) => {
-  res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
-  res.end("WS server is running.\n");
+// ================== EXPRESS (HTTP API) ==================
+const app = express();
+app.use(cors());
+app.use(express.json({ limit: "1mb" }));
+
+app.get("/", (req, res) => {
+  res.send("WS + Gemini API server is running.");
 });
 
+// ====== CHAT API (Gemini) ======
+app.post("/chat", async (req, res) => {
+  try {
+    const { messages } = req.body || {};
+
+    if (!Array.isArray(messages)) {
+      return res.status(400).json({ error: "messages must be an array" });
+    }
+
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    if (!GEMINI_API_KEY) {
+      return res.status(500).json({ error: "Missing GEMINI_API_KEY" });
+    }
+
+    // Chuyển messages -> format Gemini
+    const contents = messages.map(m => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }]
+    }));
+
+    const url =
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent" +
+      `?key=${GEMINI_API_KEY}`;
+
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contents })
+    });
+
+    const raw = await r.text();
+
+    if (!r.ok) {
+      return res.status(r.status).json({
+        error: "Gemini API error",
+        detail: raw
+      });
+    }
+
+    const data = JSON.parse(raw);
+
+    const answer =
+      data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    res.json({ answer });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ================== HTTP SERVER ==================
+const server = http.createServer(app);
+
+// ================== WEBSOCKET ==================
 const wss = new WebSocket.Server({ server });
 
 // roomId -> { clients:Set<ws>, lastState:Object|null }
 const rooms = new Map();
 
 function getRoom(roomId) {
-  if (!rooms.has(roomId)) rooms.set(roomId, { clients: new Set(), lastState: null });
+  if (!rooms.has(roomId)) {
+    rooms.set(roomId, { clients: new Set(), lastState: null });
+  }
   return rooms.get(roomId);
 }
 
 function safeSend(ws, obj) {
-  if (ws.readyState !== WebSocket.OPEN) return;
-  ws.send(JSON.stringify(obj));
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(obj));
+  }
 }
 
 function broadcast(roomId, obj, exceptWs = null) {
@@ -58,25 +121,25 @@ wss.on("connection", (ws) => {
     if (!type || !roomId) return;
 
     if (type === "join") {
-      // join room
       const room = getRoom(roomId);
       room.clients.add(ws);
       ws._roomId = roomId;
 
-      // gửi state gần nhất cho người mới vào (nếu có)
       if (room.lastState) {
-        safeSend(ws, { type: "state", room: roomId, clientId: "server", payload: room.lastState });
+        safeSend(ws, {
+          type: "state",
+          room: roomId,
+          clientId: "server",
+          payload: room.lastState
+        });
       }
 
-      // xác nhận join + cập nhật presence cho cả phòng
       safeSend(ws, { type: "joined", room: roomId });
       notifyPresence(roomId);
       return;
     }
 
-    // các message khác yêu cầu đã join
     if (ws._roomId !== roomId) {
-      // auto-join (đỡ lỗi client)
       const room = getRoom(roomId);
       room.clients.add(ws);
       ws._roomId = roomId;
@@ -87,7 +150,11 @@ wss.on("connection", (ws) => {
       if (msg.payload && typeof msg.payload === "object") {
         room.lastState = msg.payload;
       }
-      broadcast(roomId, { type: "state", room: roomId, clientId, payload: msg.payload }, ws);
+      broadcast(
+        roomId,
+        { type: "state", room: roomId, clientId, payload: msg.payload },
+        ws
+      );
       return;
     }
 
@@ -95,7 +162,6 @@ wss.on("connection", (ws) => {
       const room = getRoom(roomId);
       room.lastState = null;
       broadcast(roomId, { type: "clear", room: roomId, clientId }, ws);
-      return;
     }
   });
 
@@ -104,6 +170,7 @@ wss.on("connection", (ws) => {
     if (!roomId) return;
     const room = rooms.get(roomId);
     if (!room) return;
+
     room.clients.delete(ws);
     if (room.clients.size === 0) {
       rooms.delete(roomId);
@@ -113,6 +180,7 @@ wss.on("connection", (ws) => {
   });
 });
 
+// ================== START SERVER ==================
 server.listen(PORT, () => {
-  console.log("WS server listening on port", PORT);
+  console.log("WS + Gemini API server listening on port", PORT);
 });
