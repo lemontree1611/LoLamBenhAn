@@ -760,7 +760,7 @@ async function sendMessage() {
     chatHistory.push({ role: "user", content: userContent });
     saveChatHistory();
 
-    const response = await fetch("../source/apikey.php", {
+    const response = await fetch("https://lolambenhan.gt.tc/source/apikey.php", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
