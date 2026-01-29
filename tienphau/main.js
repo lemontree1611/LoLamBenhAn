@@ -608,6 +608,13 @@ const chatSend = document.getElementById("chat-send");
 const chatInput = document.getElementById("chat-text");
 const chatMessages = document.getElementById("chat-messages");
 
+// ===============================
+//  CHAT API (Render)
+//  Backend proxy gọi Gemini, trả JSON: { answer: "..." }
+//  (Đổi domain nếu Render của bạn khác)
+// ===============================
+const CHAT_API_URL = "https://lolambenhan.onrender.com";
+
 if (chatToggleBtn && chatBox) {
   chatToggleBtn.onclick = () => {
     const willShow = !chatBox.classList.contains("show");
@@ -760,18 +767,29 @@ async function sendMessage() {
     chatHistory.push({ role: "user", content: userContent });
     saveChatHistory();
 
-    const response = await fetch("https://lolambenhan.gt.tc/source/apikey.php", {
+    const response = await fetch(CHAT_API_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        messages: chatHistory
-      })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: chatHistory })
     });
 
-    const data = await response.json();
-    const reply = data.choices?.[0]?.message?.content || "Bot không trả lời.";
+    // Đọc text trước để tránh lỗi: Unexpected token '<' (server trả HTML)
+    const raw = await response.text();
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${raw.slice(0, 200)}`);
+    }
+
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch (_) {
+      throw new Error(`Server không trả JSON. Nhận: ${raw.slice(0, 200)}`);
+    }
+
+    // Backend Render (Gemini proxy) trả { answer: "..." }
+    const reply = (data && typeof data.answer === "string" && data.answer.trim())
+      ? data.answer.trim()
+      : "Bot không trả lời.";
 
     clearTimeout(timeoutId);
     loadingEl.remove();
