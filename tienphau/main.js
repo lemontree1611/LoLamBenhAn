@@ -226,9 +226,9 @@ function __wsConnectIfNeeded() {
   const room = __getRoomFromURL();
   __SHARE__.room = room;
 
-  // Nếu không có room thì không auto connect (vẫn cho bấm Chia sẻ để tạo room)
+  // Không có room: không hiển thị notice, chỉ tạo khi bấm Chia sẻ
   if (!room) {
-    __showShareNotice('🔗 Nhấn <b>Chia sẻ</b> để tạo link đồng bộ online.', false);
+    __hideShareNotice();
     return;
   }
 
@@ -824,6 +824,8 @@ document.getElementById("btn-share")?.addEventListener("click", async () => {
 // hook: bất cứ thay đổi nào trong form sẽ gửi state (debounce)
 document.getElementById("benhanForm")?.addEventListener("input", __debouncedSendState, { capture: true });
 document.getElementById("benhanForm")?.addEventListener("change", __debouncedSendState, { capture: true });
+
+__hideShareNotice();
 
 // auto connect nếu mở bằng link có ?room=
 __wsConnectIfNeeded();
