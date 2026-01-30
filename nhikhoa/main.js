@@ -820,6 +820,13 @@ const chatSend = document.getElementById("chat-send");
 const chatInput = document.getElementById("chat-text");
 const chatMessages = document.getElementById("chat-messages");
 
+// ===============================
+//  CHAT API (Render)
+//  Backend proxy gọi Gemini, trả JSON: { answer: "..." }
+//  (Đổi domain nếu Render của bạn khác)
+// ===============================
+const CHAT_API_URL = "https://lolambenhan.onrender.com/chat";
+
 if (chatToggleBtn && chatBox) {
   chatToggleBtn.onclick = () => {
     const willShow = !chatBox.classList.contains("show");
@@ -972,18 +979,29 @@ async function sendMessage() {
     chatHistory.push({ role: "user", content: userContent });
     saveChatHistory();
 
-    const response = await fetch("../source/apikey.php", {
+    const response = await fetch(CHAT_API_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        messages: chatHistory
-      })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: chatHistory })
     });
 
-    const data = await response.json();
-    const reply = data.choices?.[0]?.message?.content || "Bot không trả lời.";
+    // Đọc text trước để tránh lỗi: Unexpected token '<' (server trả HTML)
+    const raw = await response.text();
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${raw.slice(0, 200)}`);
+    }
+
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch (_) {
+      throw new Error(`Server không trả JSON. Nhận: ${raw.slice(0, 200)}`);
+    }
+
+    // Backend Render (Gemini proxy) trả { answer: "..." }
+    const reply = (data && typeof data.answer === "string" && data.answer.trim())
+      ? data.answer.trim()
+      : "Bot không trả lời.";
 
     clearTimeout(timeoutId);
     loadingEl.remove();
@@ -1014,6 +1032,419 @@ if (chatInput) {
   });
 }
 
+// ===============================
+//  SHARE ONLINE (WebSocket - Render, ws thuần)
+//  - Không hiện notice khi chưa bấm Chia sẻ
+//  - Dùng ?room=xxxx để 2 máy vào cùng phòng
+//  - Đồng bộ realtime + đồng bộ Xoá hết
+// ===============================
+(function initShareWebSocket() {
+  const WS_URL = "wss://lolambenhan.onrender.com"; // <-- đổi nếu domain Render thay đổi
+
+  const noticeEl = document.getElementById("share-notice");
+  const btnShare = document.getElementById("btn-share");
+  const formEl = document.getElementById("benhanForm");
+
+  // Disable nút Chia sẻ khi đã vào room (đang chia sẻ) + hiển thị trạng thái kết nối
+  function setShareButtonDisabled(disabled) {
+    if (!btnShare) return;
+    btnShare.disabled = !!disabled;
+    btnShare.classList.toggle("is-disabled", !!disabled);
+    if (disabled) {
+      btnShare.setAttribute("aria-disabled", "true");
+      btnShare.title = "Đang trong phiên chia sẻ";
+    } else {
+      btnShare.removeAttribute("aria-disabled");
+      btnShare.title = "";
+    }
+  }
+
+  function dotSVG(color) {
+    return `
+      <svg style="vertical-align:middle;margin-right:6px;flex-shrink:0;" width="10" height="10" viewBox="0 0 10 10"
+           xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="5" cy="5" r="5" fill="${color}"></circle>
+      </svg>
+    `.trim();
+  }
+
+  function setShareStatus(status, count) {
+    if (!btnShare) return;
+
+    // Khi đã ở room => luôn disable
+    const inRoom = !!state.room;
+
+    if (!inRoom) {
+      // chưa vào room: nút chia sẻ bình thường
+      setShareButtonDisabled(false);
+      btnShare.textContent = "Chia sẻ";
+      return;
+    }
+
+    setShareButtonDisabled(true);
+
+    if (status === "connecting") {
+      btnShare.innerHTML = `${dotSVG("#f59e0b")}Connecting…`;
+      return;
+    }
+
+    if (status === "offline") {
+      btnShare.innerHTML = `${dotSVG("#ef4444")}Offline`;
+      return;
+    }
+
+    // online
+    const n = (typeof count === "number" && isFinite(count)) ? count : null;
+    btnShare.innerHTML = `${dotSVG("#22c55e")}${n !== null ? `${n} online` : "Online"}`;
+  }
+
+  const state = {
+    ws: null,
+    room: null,
+    connected: false,
+    applyingRemote: false,
+    sendTimer: 0,
+    lastSentJson: "",
+    boundEvents: false,
+  };
+
+  function setNotice(html, show = true) {
+    if (!noticeEl) return;
+    noticeEl.innerHTML = html || "";
+    noticeEl.style.display = show ? "block" : "none";
+  }
+
+  // Luôn ẩn notice lúc mới vào (đúng yêu cầu)
+  setNotice("", false);
+
+  function getRoomFromURL() {
+    try {
+      const u = new URL(window.location.href);
+      const r = u.searchParams.get("room");
+      return r && r.trim() ? r.trim() : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function setRoomToURL(room) {
+    const u = new URL(window.location.href);
+    u.searchParams.set("room", room);
+    history.replaceState(null, "", u.toString());
+    return u.toString();
+  }
+
+  function randomRoom() {
+    return (Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4)).toLowerCase();
+  }
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      try { window.prompt("Copy link:", text); return true; } catch {}
+      return false;
+    }
+  }
+
+  function renderSharedNotice(link) {
+    // Dùng đúng class đã có trong style.css để khỏi lệch style
+    setNotice(`
+      <div class="share-row">
+        <span class="share-label" style="color: green !important;">Đã chia sẻ</span>
+        <a class="share-link" href="${escapeHtml(link)}" target="_blank" rel="noopener">${escapeHtml(link)}</a>
+        <span class="share-actions">
+          <button type="button" class="apple-icon-btn" id="share-copy-btn" data-link="${escapeHtml(link)}">Copy</button>
+        </span>
+      </div>
+      <div class="share-hint">
+        Gửi cho người khác link phía trên để họ truy cập và làm bệnh án cùng bạn.
+      </div>
+    `, true);
+  }
+
+  function renderConnectedNotice(room) {
+    // Khi người nhận mở link có room=... thì chỉ báo kết nối (không hiện “nhấn chia sẻ…”)
+    setNotice(`
+      <div class="share-row">
+        <span class="share-label" style="color: green !important;">Kết nối thành công</span>
+        <span class="share-muted">(Room <b>${escapeHtml(room)}</b>)</span>
+        <span class="share-actions">
+          <button type="button" class="apple-icon-btn" id="share-copy-btn" data-link="${escapeHtml(window.location.href)}">Copy link</button>
+        </span>
+      </div>
+      <div class="share-hint">
+        Bạn đang ở phiên bệnh án do người khác chia sẽ, mọi thay đổi sẽ tự động lưu lại.
+      </div>
+    `, true);
+  }
+
+  function bindNoticeCopyButton() {
+    if (!noticeEl) return;
+    const btn = noticeEl.querySelector("#share-copy-btn");
+    if (!btn) return;
+
+    btn.addEventListener("click", async () => {
+      const link = btn.getAttribute("data-link") || window.location.href;
+      const ok = await copyText(link);
+      if (!ok) return;
+
+      const old = btn.textContent;
+      btn.textContent = "Đã copy";
+      btn.classList.add("is-done");
+      window.setTimeout(() => {
+        btn.textContent = old;
+        btn.classList.remove("is-done");
+      }, 1200);
+    }, { once: true });
+  }
+
+  function collectFields() {
+    if (!formEl) return [];
+    const els = Array.from(formEl.querySelectorAll("input[id], textarea[id], select[id]"));
+    return els.filter(el => {
+      const id = el.id || "";
+      if (!id) return false;
+      if (el.type === "button" || el.type === "submit") return false;
+      return true;
+    });
+  }
+
+  function snapshotData() {
+    const out = {};
+    for (const el of collectFields()) {
+      if (el.type === "checkbox") out[el.id] = !!el.checked;
+      else if (el.type === "radio") {
+        if (el.checked) out[el.id] = el.value ?? "";
+      } else {
+        out[el.id] = (el.value ?? "");
+      }
+    }
+    return out;
+  }
+
+  function applyData(dataObj) {
+    if (!dataObj || typeof dataObj !== "object") return;
+
+    state.applyingRemote = true;
+    try {
+      for (const el of collectFields()) {
+        if (!(el.id in dataObj)) continue;
+        // không overwrite field đang focus
+        if (document.activeElement === el) continue;
+
+        const v = dataObj[el.id];
+
+        if (el.type === "checkbox") {
+          el.checked = !!v;
+        } else if (el.type === "radio") {
+          el.checked = (String(v) === String(el.value));
+        } else {
+          el.value = (v ?? "");
+        }
+
+        // Nếu là select mẫu thì đổ vào textarea tương ứng
+        if (el.tagName === "SELECT") {
+          const mappedTextareaId = __SELECT_TO_TEXTAREA__?.[el.id];
+          if (mappedTextareaId) _setTextareaFromSelect(el.id, mappedTextareaId, { silentSync: true });
+        }
+
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+
+      // đảm bảo các computed cập nhật
+      try { tinhBMI(); } catch (_) {}
+      try { updateTomtat(); } catch (_) {}
+
+    } finally {
+      state.applyingRemote = false;
+    }
+  }
+
+  function wsSend(obj) {
+    if (!state.ws || state.ws.readyState !== 1) return;
+    // gửi kèm room để server dễ route (kể cả khi join/presence có vấn đề)
+    if (state.room && (obj?.type === "state" || obj?.type === "clear")) {
+      obj.room = state.room;
+    }
+    state.ws.send(JSON.stringify(obj));
+  }
+
+  function scheduleSendState(immediate = false) {
+    if (!state.connected || state.applyingRemote) return;
+    if (state.sendTimer) clearTimeout(state.sendTimer);
+
+    const run = () => {
+      const payload = snapshotData();
+      const json = JSON.stringify(payload);
+      if (json === state.lastSentJson) return;
+      state.lastSentJson = json;
+      wsSend({ type: "state", payload });
+    };
+
+    state.sendTimer = setTimeout(run, immediate ? 0 : 350);
+  }
+
+  function bindFormEvents() {
+    if (!formEl) return;
+    if (state.boundEvents) return;
+    state.boundEvents = true;
+    formEl.addEventListener("input", () => scheduleSendState(false));
+    formEl.addEventListener("change", () => scheduleSendState(false));
+  }
+
+  function connect(room, { showNotice } = { showNotice: false }) {
+    if (!WS_URL) return;
+
+    // cleanup cũ
+    try { state.ws?.close(); } catch (_) {}
+    state.ws = null;
+    state.connected = false;
+    state.room = room;
+    state.onlineCount = null;
+    setShareStatus("connecting");
+
+    const ws = new WebSocket(WS_URL);
+    state.ws = ws;
+
+    ws.onopen = () => {
+      wsSend({ type: "join", room });
+      state.connected = true;
+      // vẫn hiển thị Connecting… cho tới khi nhận presence/joined
+      setShareStatus("connecting", state.onlineCount);
+
+      // Khi đã vào room thì mới bind events
+      bindFormEvents();
+
+      if (showNotice) {
+        renderSharedNotice(window.location.href);
+        bindNoticeCopyButton();
+      } else {
+        // nếu người nhận mở link => cho biết đang đồng bộ
+        renderConnectedNotice(room);
+        bindNoticeCopyButton();
+      }
+
+      // đẩy state hiện tại lên ngay (để người vào sau nhận)
+      scheduleSendState(true);
+    };
+
+    ws.onmessage = (ev) => {
+      let msg;
+      try { msg = JSON.parse(ev.data); } catch { return; }
+
+      if (msg.type === "joined") {
+        // server xác nhận đã vào phòng
+        setShareStatus("online", state.onlineCount);
+        return;
+      }
+
+      if (msg.type === "presence") {
+        // cập nhật số người online trong phòng
+        if (typeof msg.count === "number") state.onlineCount = msg.count;
+        setShareStatus(state.connected ? "online" : "connecting", state.onlineCount);
+        return;
+      }
+
+      if (msg.type === "state") {
+        applyData(msg.payload || {});
+        return;
+      }
+      if (msg.type === "clear") {
+        // reset local (không confirm)
+        __resetFormUIOnly();
+        return;
+      }
+    };
+
+    ws.onclose = () => {
+      state.connected = false;
+      if (state.room) setShareStatus("offline", state.onlineCount);
+      // không hiện notice khi chưa bấm chia sẻ; còn đang share thì giữ notice nhưng có thể reconnect
+      // auto reconnect nhẹ nếu đã có room
+      if (state.room) {
+        setTimeout(() => {
+          // chỉ reconnect nếu vẫn ở đúng room (tránh reconnect khi user rời room)
+          const cur = getRoomFromURL();
+          if (cur && cur === state.room) connect(state.room, { showNotice: showNotice || false });
+        }, 1200);
+      }
+    };
+
+    ws.onerror = () => {
+      if (state.room) setShareStatus("offline", state.onlineCount);
+      // nếu người dùng đã bấm chia sẻ mà lỗi thì báo nhẹ
+      if (showNotice) {
+        setNotice(`
+          <div class="share-row">
+            <span class="share-label" style="color: #c00 !important;">Không kết nối được</span>
+            <span class="share-muted">Kiểm tra Render đang chạy và WS_URL.</span>
+          </div>
+        `, true);
+      }
+    };
+  }
+
+  // Reset UI-only (dùng khi nhận "clear" từ remote)
+  function __resetFormUIOnly() {
+    document.getElementById('benhanForm')?.reset();
+    const tuoi = document.getElementById('tuoi'); if (tuoi) tuoi.textContent = '-';
+    const bmi = document.getElementById('bmi'); if (bmi) bmi.textContent = '-';
+    const pl = document.getElementById('phanloai'); if (pl) pl.textContent = '-';
+    try { closePreview(); } catch (_) {}
+  }
+
+  // expose để resetForm() gọi khi user bấm Xoá hết
+  window.__SHARE_SYNC__ = window.__SHARE_SYNC__ || {};
+  window.__SHARE_SYNC__.enabled = false;
+  window.__SHARE_SYNC__.saveFieldNow = () => scheduleSendState(false); // compat cho dropdown helper
+  window.__SHARE_SYNC__.clearAllNow = () => {
+    if (!state.connected) return;
+    wsSend({ type: "clear" });
+  };
+
+  // click Chia sẻ: tạo room, cập nhật URL, connect, show notice
+  async function onShareClick() {
+    let room = getRoomFromURL();
+    if (!room) {
+      room = randomRoom();
+      setRoomToURL(room);
+    }
+    const link = window.location.href;
+
+    // Copy link ngay khi bấm (nếu được)
+    try { await navigator.clipboard.writeText(link); } catch (_) {}
+
+    // Đã bắt đầu chia sẻ => khoá nút Chia sẻ và hiện trạng thái Connecting…
+    state.room = room;
+    setShareStatus("connecting");
+
+    connect(room, { showNotice: true });
+    window.__SHARE_SYNC__.enabled = true;
+
+    // render notice ngay (không chờ ws open) để user thấy có phản hồi
+    renderSharedNotice(link);
+    bindNoticeCopyButton();
+  }
+
+  if (btnShare) btnShare.addEventListener("click", onShareClick);
+
+  // Auto-connect khi người nhận mở link có ?room=
+  const roomFromUrl = getRoomFromURL();
+  if (roomFromUrl) {
+    // Nếu mở bằng link có room => đang trong phiên chia sẻ
+    state.room = roomFromUrl;
+    setShareStatus("connecting");
+    connect(roomFromUrl, { showNotice: false });
+    window.__SHARE_SYNC__.enabled = true;
+    // vẫn cho thấy đang đồng bộ (không hiện hint “nhấn chia sẻ…”)
+    renderConnectedNotice(roomFromUrl);
+    bindNoticeCopyButton();
+  }
+
+})();
 
 // ===============================
 //  SHARE + SYNC (DB via PHP API)
