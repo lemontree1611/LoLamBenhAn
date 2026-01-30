@@ -882,6 +882,13 @@ if (chatInput) {
     sendTimer: 0,
     lastSentJson: "",
     boundEvents: false,
+
+    // ===== LOCK STATE =====
+    // Mỗi tab/browser có 1 id riêng để phân biệt người đang sửa
+    clientId: (crypto?.randomUUID?.() || ("c_" + Math.random().toString(36).slice(2))),
+    // { [fieldId]: { by: string, at: number } }
+    locks: {},
+    onlineCount: null,
   };
 
   function setNotice(html, show = true) {
@@ -987,6 +994,67 @@ if (chatInput) {
     });
   }
 
+  // ===============================
+  //  FIELD LOCK (focus-based)
+  //  - 1 người focus 1 field => field đó bị khoá ở máy khác
+  // ===============================
+
+  //  - 1 người focus 1 field => field đó bị khoá ở máy khác
+  // ===============================
+  function getLockerLabel(by) {
+    // bạn có thể đổi sang hiển thị "Người #1/#2" nếu muốn
+    return by ? by.slice(0, 6) : "người khác";
+  }
+
+  function sendLock(fieldId) {
+    if (!state.connected || !fieldId) return;
+    wsSend({ type: "lock", fieldId, by: state.clientId, at: Date.now() });
+  }
+
+  function sendUnlock(fieldId) {
+    if (!state.connected || !fieldId) return;
+    wsSend({ type: "unlock", fieldId, by: state.clientId, at: Date.now() });
+  }
+
+  function setFieldLockedUI(fieldId, locked, byWho) {
+    const el = document.getElementById(fieldId);
+    if (!el) return;
+
+    // Nếu mình đang focus ô đó thì không can thiệp (tránh giật)
+    if (document.activeElement === el) return;
+
+    if (locked) {
+      el.disabled = true;
+      el.classList.add("is-locked");
+      el.setAttribute("data-locked-by", byWho || "");
+
+      const oldPh = el.getAttribute("data-old-placeholder");
+      if (oldPh === null) el.setAttribute("data-old-placeholder", el.placeholder || "");
+
+      const who = getLockerLabel(byWho);
+      el.placeholder = `Đang được sửa bởi ${who}`;
+    } else {
+      el.disabled = false;
+      el.classList.remove("is-locked");
+      el.removeAttribute("data-locked-by");
+
+      const old = el.getAttribute("data-old-placeholder");
+      if (old !== null) el.placeholder = old;
+      el.removeAttribute("data-old-placeholder");
+    }
+  }
+
+  function applyLocks(locksObj) {
+    if (!locksObj || typeof locksObj !== "object") return;
+    state.locks = { ...locksObj };
+    for (const [fieldId, meta] of Object.entries(state.locks)) {
+      if (!meta || meta.by === state.clientId) continue;
+      setFieldLockedUI(fieldId, true, meta.by);
+    }
+  }
+
+  
+
   function snapshotData() {
     const out = {};
     for (const el of collectFields()) {
@@ -1069,6 +1137,26 @@ if (chatInput) {
     state.boundEvents = true;
     formEl.addEventListener("input", () => scheduleSendState(false));
     formEl.addEventListener("change", () => scheduleSendState(false));
+ 
+    // ===== LOCK: focus/blur =====
+    formEl.addEventListener("focusin", (e) => {
+      const el = e.target;
+      if (!el || !el.id) return;
+
+      // nếu field đang bị khoá bởi người khác thì không cho nhập
+      const cur = state.locks?.[el.id];
+      if (cur && cur.by && cur.by !== state.clientId) {
+        try { el.blur(); } catch (_) {}
+        return;
+      }
+      sendLock(el.id);
+    });
+
+    formEl.addEventListener("focusout", (e) => {
+      const el = e.target;
+      if (!el || !el.id) return;
+      sendUnlock(el.id);
+    });
   }
 
   function connect(room, { showNotice } = { showNotice: false }) {
@@ -1121,6 +1209,46 @@ if (chatInput) {
         // cập nhật số người online trong phòng
         if (typeof msg.count === "number") state.onlineCount = msg.count;
         setShareStatus(state.connected ? "online" : "connecting", state.onlineCount);
+        return;
+      }
+
+
+      if (msg.type === "locks") {
+        // server gửi danh sách lock hiện tại khi join
+        applyLocks(msg.payload || {});
+        return;
+      }
+
+      if (msg.type === "lock") {
+        const fid = msg.fieldId;
+        const by = msg.by || msg.clientId;
+        if (fid && by && by !== state.clientId) {
+          state.locks[fid] = { by, at: msg.at || Date.now() };
+          setFieldLockedUI(fid, true, by);
+        }
+        return;
+      }
+
+      if (msg.type === "unlock") {
+        const fid = msg.fieldId;
+        const by = msg.by || msg.clientId;
+
+        const cur = state.locks?.[fid];
+        if (fid && cur && (!by || cur.by === by)) {
+          delete state.locks[fid];
+          setFieldLockedUI(fid, false);
+        }
+        return;
+      }
+
+      if (msg.type === "lock-denied") {
+        // máy mình xin lock nhưng đã có người khác giữ
+        const fid = msg.fieldId;
+        const by = msg.by;
+        if (fid && by && by !== state.clientId) {
+          state.locks[fid] = { by, at: msg.at || Date.now() };
+          setFieldLockedUI(fid, true, by);
+        }
         return;
       }
 
