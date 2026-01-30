@@ -613,7 +613,7 @@ const chatMessages = document.getElementById("chat-messages");
 //  Backend proxy gọi Gemini, trả JSON: { answer: "..." }
 //  (Đổi domain nếu Render của bạn khác)
 // ===============================
-const CHAT_API_URL = "https://lolambenhan.onrender.com/chat";
+const CHAT_API_URL = "/chat";
 
 if (chatToggleBtn && chatBox) {
   chatToggleBtn.onclick = () => {
