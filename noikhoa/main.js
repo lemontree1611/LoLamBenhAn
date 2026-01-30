@@ -1109,10 +1109,13 @@ if (chatInput) {
 
   function wsSend(obj) {
     if (!state.ws || state.ws.readyState !== 1) return;
-    // gửi kèm room để server dễ route (kể cả khi join/presence có vấn đề)
-    if (state.room && (obj?.type === "state" || obj?.type === "clear")) {
-      obj.room = state.room;
-    }
+
+    // Always include room so server can route messages
+    if (state.room && !obj.room) obj.room = state.room;
+
+    // Always include clientId so server can track ownership/cleanup
+    if (!obj.clientId) obj.clientId = state.clientId;
+
     state.ws.send(JSON.stringify(obj));
   }
 
