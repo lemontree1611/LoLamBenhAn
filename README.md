@@ -49,7 +49,7 @@
 
 ## 🚀 Demo & triển khai
 
-🔗 Demo: https://lemontree1611.github.io/lolambenhan/
+🔗 Demo: https://lolambenhan.vercel.app/
 
 ![Trang chủ](source/preview.jpg)
 
