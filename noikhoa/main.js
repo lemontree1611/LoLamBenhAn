@@ -157,7 +157,6 @@ function getFormData() {
     bmi: document.getElementById('bmi')?.textContent || '-',
     phanloai: document.getElementById('phanloai')?.textContent || '-',
     tongtrang: getField('tongtrang'),
-    benhngoai: getField('benhngoai'),
     timmach: getField('timmach'),
     hopho: getField('hopho'),
     tieuhoa: getField('tieuhoa'),
@@ -165,7 +164,6 @@ function getFormData() {
     thankinh: getField('thankinh'),
     cokhop: getField('cokhop'),
     coquankhac: getField('coquankhac'),
-    cls_dalam: getField('cls_dalam'),
     tomtat: getField('tomtat'),
     chandoanso: getField('chandoanso'),
     chandoanpd: getField('chandoanpd'),
@@ -192,7 +190,7 @@ function buildHTMLDoc() {
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>BỆNH ÁN TIỀN PHẪU - ${escapeHtml(data.hoten)}</title>
+  <title>BỆNH ÁN NỘI KHOA - ${escapeHtml(data.hoten)}</title>
 <style>
   @page { size: A4; margin: 2cm; }
 
@@ -226,7 +224,7 @@ function buildHTMLDoc() {
 </style>
 </head>
 <body>
-  <h1 class="center" style="margin:0 0 8px 0;font-size:20pt;"><b>BỆNH ÁN TIỀN PHẪU</b></h1>
+  <h1 class="center" style="margin:0 0 8px 0;font-size:20pt;"><b>BỆNH ÁN NỘI KHOA</b></h1>
   <p><em>Ngày làm bệnh án: ${escapeHtml(dateNow)}</em></p>
 
   <p style="margin-top:12px;"><b>A. PHẦN HÀNH CHÁNH</b></p>
@@ -254,9 +252,7 @@ function buildHTMLDoc() {
     ${nl2br(data.tongtrang)}
   </p>
 
-  <p style="margin-top:6px;"><b>2. Bệnh ngoại khoa:</b><br/>${nl2br(data.benhngoai)}</p>
-
-  <p style="margin-top:6px;"><b>3. Các cơ quan:</b></p>
+  <p style="margin-top:6px;"><b>2. Khám cơ quan:</b></p>
   <p><b>a) Tuần hoàn:</b><br/>${nl2br(data.timmach)}</p>
   <p><b>b) Hô hấp:</b><br/>${nl2br(data.hopho)}</p>
   <p><b>c) Tiêu hoá:</b><br/>${nl2br(data.tieuhoa)}</p>
@@ -264,8 +260,6 @@ function buildHTMLDoc() {
   <p><b>e) Thần kinh:</b><br/>${nl2br(data.thankinh)}</p>
   <p><b>f) Cơ - Xương - Khớp:</b><br/>${nl2br(data.cokhop)}</p>
   <p><b>g) Các cơ quan khác:</b> ${nl2br(data.coquankhac)}</p>
-
-  <p><b>4. Các cận lâm sàng đã làm:</b><br/>${nl2br(data.cls_dalam)}</p>
 
   <p style="margin-top:10px;"><b>III. Kết luận</b></p>
   <p><b>1. Tóm tắt bệnh án:</b><br/>${nl2br(data.tomtat)}</p>
@@ -440,7 +434,7 @@ async function generateDocx() {
             spacing: { after: 200, line: LINE_15, lineRule: docx.LineRuleType.AUTO },
             children: [
               new docx.TextRun({
-                text: "BỆNH ÁN TIỀN PHẪU",
+                text: "BỆNH ÁN NỘI KHOA",
                 bold: true,
                 font: "Times New Roman",
                 size: TITLE_SIZE,
@@ -483,10 +477,7 @@ async function generateDocx() {
           para(`- Chiều cao: ${data.chieucao} cm, cân nặng: ${data.cannang} kg, BMI = ${data.bmi} kg/m² => Phân loại ${data.phanloai} theo WHO Asia`),
           ...textToParagraphs(data.tongtrang),
 
-          paraHeading("2. ", "Bệnh ngoại khoa:", { spacing: { ...basePara.spacing, before: 120, after: 0 } }),
-          ...textToParagraphs(data.benhngoai),
-
-          paraHeading("3. ", "Các cơ quan:", { spacing: { ...basePara.spacing, before: 120, after: 20 } }),
+          paraHeading("2. ", "Khám cơ quan:", { spacing: { ...basePara.spacing, before: 120, after: 20 } }),
           paraHeading("a) ", "Tuần hoàn:", { spacing: { ...basePara.spacing, after: 0 } }),
           ...textToParagraphs(data.timmach),
 
@@ -507,9 +498,6 @@ async function generateDocx() {
 
           // g) label đậm, value thường
           paraLabelValue("g) Các cơ quan khác: ", data.coquankhac, { spacing: { ...basePara.spacing, before: 40, after: 0 } }),
-
-          // 4. CLS đã làm
-          ...paraLabelValueMultiline("4. Các cận lâm sàng đã làm: ", data.cls_dalam, { spacing: { ...basePara.spacing, before: 40, after: 0 } }),
 
           paraHeading("III. ", "Kết luận", { spacing: { ...basePara.spacing, before: 160, after: 60 } }),
           paraHeading("1. ", "Tóm tắt bệnh án:", { spacing: { ...basePara.spacing, after: 0 } }),
@@ -550,7 +538,7 @@ async function generateDocx() {
     });
 
     const blob = await docx.Packer.toBlob(doc);
-    saveAs(blob, `${data.hoten || 'benhan_tienphau'}.docx`);
+    saveAs(blob, `${data.hoten || 'benhan'}.docx`);
   } catch (err) {
     alert("⚠️ Lỗi: " + (err?.message || err));
     console.error(err);
@@ -608,12 +596,13 @@ const chatSend = document.getElementById("chat-send");
 const chatInput = document.getElementById("chat-text");
 const chatMessages = document.getElementById("chat-messages");
 
+
 // ===============================
-//  CHAT API (Render)
-//  Backend proxy gọi Gemini, trả JSON: { answer: "..." }
-//  (Đổi domain nếu Render của bạn khác)
+//  CHAT API URL
+//  - Mặc định giữ endpoint cũ của main1
+//  - Bạn có thể đổi sang Render giống main-src nếu muốn
 // ===============================
-const CHAT_API_URL = "https://lolambenhan.onrender.com/chat";
+const CHAT_API_URL = \"../source/apikey.php\";
 
 if (chatToggleBtn && chatBox) {
   chatToggleBtn.onclick = () => {
@@ -759,11 +748,13 @@ async function sendMessage() {
   }, 10000);
 
   try {
-    // ✅ Cách 3: bơm context từ form (tóm tắt + chẩn đoán sơ bộ)
+    // Bơm context từ form (tóm tắt + chẩn đoán sơ bộ)
     const formContext = buildFormContextForBot();
-    const userContent = formContext ? (formContext + "\n\nCâu hỏi: " + text) : text;
+    const userContent = formContext ? (formContext + "
 
-    // ✅ Cách 1/2/3: lưu lịch sử theo mode
+Câu hỏi: " + text) : text;
+
+    // lưu lịch sử theo mode
     chatHistory.push({ role: "user", content: userContent });
     saveChatHistory();
 
@@ -773,7 +764,7 @@ async function sendMessage() {
       body: JSON.stringify({ messages: chatHistory })
     });
 
-    // Đọc text trước để tránh lỗi: Unexpected token '<' (server trả HTML)
+    // Đọc text trước để tránh lỗi: server trả HTML (hoặc text không phải JSON)
     const raw = await response.text();
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${raw.slice(0, 200)}`);
@@ -786,10 +777,13 @@ async function sendMessage() {
       throw new Error(`Server không trả JSON. Nhận: ${raw.slice(0, 200)}`);
     }
 
-    // Backend Render (Gemini proxy) trả { answer: "..." }
-    const reply = (data && typeof data.answer === "string" && data.answer.trim())
-      ? data.answer.trim()
-      : "Bot không trả lời.";
+    // Hỗ trợ nhiều định dạng trả về:
+    // - main-src (Render): { answer: "..." }
+    // - OpenAI-like: { choices: [{ message: { content: "..." } }] }
+    const reply =
+      (data && typeof data.answer === "string" && data.answer.trim()) ? data.answer.trim()
+      : (data?.choices?.[0]?.message?.content ? String(data.choices[0].message.content).trim() : "")
+        || "Bot không trả lời.";
 
     clearTimeout(timeoutId);
     loadingEl.remove();
@@ -1233,3 +1227,4 @@ if (chatInput) {
   }
 
 })();
+
