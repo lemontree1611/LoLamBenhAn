@@ -224,12 +224,12 @@ const server = http.createServer(app);
 // ================== WEBSOCKET ==================
 const wss = new WebSocket.Server({ server });
 
-// roomId -> { clients:Set<ws>, lastState:Object|null }
+// roomId -> { clients:Set<ws>, lastState:Object|null, locks:Map<string,{by:string,at:number}> }|// roomId -> { clients:Set<ws>, lastState:Object|null, locks:Map<string,{by:string,at:number}> }
 const rooms = new Map();
 
 function getRoom(roomId) {
   if (!rooms.has(roomId)) {
-    rooms.set(roomId, { clients: new Set(), lastState: null });
+    rooms.set(roomId, { clients: new Set(), lastState: // roomId -> { clients:Set<ws>, lastState:Object|null, locks:Map<string,{by:string,at:number}> });
   }
   return rooms.get(roomId);
 }
@@ -258,6 +258,7 @@ function notifyPresence(roomId) {
 
 wss.on("connection", (ws) => {
   ws._roomId = null;
+  ws._clientId = null;
 
   ws.on("message", (buf) => {
     let msg;
@@ -268,12 +269,18 @@ wss.on("connection", (ws) => {
     }
 
     const { type, room: roomId, clientId } = msg || {};
+
+    const by = msg.by || clientId || ws._clientId || null;
+    if (clientId && !ws._clientId) ws._clientId = clientId;
+    if (msg.by && !ws._clientId) ws._clientId = msg.by;
+
     if (!type || !roomId) return;
 
     if (type === "join") {
       const room = getRoom(roomId);
       room.clients.add(ws);
       ws._roomId = roomId;
+      if (by && !ws._clientId) ws._clientId = by;
 
       if (room.lastState) {
         safeSend(ws, {
@@ -284,6 +291,8 @@ wss.on("connection", (ws) => {
         });
       }
 
+      safeSend(ws, { type: "locks", room: roomId, payload: Object.fromEntries(room.locks) });
+
       safeSend(ws, { type: "joined", room: roomId });
       notifyPresence(roomId);
       return;
@@ -293,9 +302,45 @@ wss.on("connection", (ws) => {
       const room = getRoom(roomId);
       room.clients.add(ws);
       ws._roomId = roomId;
+      if (by && !ws._clientId) ws._clientId = by;
     }
 
-    if (type === "state") {
+    
+    if (type === "lock") {
+      const room = getRoom(roomId);
+      const fieldId = String(msg.fieldId || "").trim();
+      const locker = by;
+
+      if (!fieldId || !locker) return;
+
+      const cur = room.locks.get(fieldId);
+      if (cur && cur.by && cur.by !== locker) {
+        // đã có người khác lock => báo lại cho requester
+        safeSend(ws, { type: "lock-denied", room: roomId, fieldId, by: cur.by, at: cur.at || Date.now() });
+        return;
+      }
+
+      room.locks.set(fieldId, { by: locker, at: msg.at || Date.now() });
+      broadcast(roomId, { type: "lock", room: roomId, fieldId, by: locker, at: msg.at || Date.now() }, ws);
+      return;
+    }
+
+    if (type === "unlock") {
+      const room = getRoom(roomId);
+      const fieldId = String(msg.fieldId || "").trim();
+      const locker = by;
+
+      if (!fieldId || !locker) return;
+
+      const cur = room.locks.get(fieldId);
+      if (cur && cur.by === locker) {
+        room.locks.delete(fieldId);
+        broadcast(roomId, { type: "unlock", room: roomId, fieldId, by: locker, at: msg.at || Date.now() }, ws);
+      }
+      return;
+    }
+
+if (type === "state") {
       const room = getRoom(roomId);
       if (msg.payload && typeof msg.payload === "object") {
         room.lastState = msg.payload;
@@ -311,6 +356,11 @@ wss.on("connection", (ws) => {
     if (type === "clear") {
       const room = getRoom(roomId);
       room.lastState = null;
+
+      // clear lock luôn để tránh kẹt ô sau khi reset
+      room.locks.clear();
+      broadcast(roomId, { type: "locks", room: roomId, payload: {} }, null);
+
       broadcast(roomId, { type: "clear", room: roomId, clientId }, ws);
     }
   });
@@ -320,6 +370,24 @@ wss.on("connection", (ws) => {
     if (!roomId) return;
     const room = rooms.get(roomId);
     if (!room) return;
+
+    // cleanup locks do client này giữ
+    const cid = ws._clientId;
+    if (cid) {
+      const toUnlock = [];
+      for (const [fieldId, meta] of room.locks.entries()) {
+        if (meta && meta.by === cid) toUnlock.push(fieldId);
+      }
+      if (toUnlock.length) {
+        for (const fieldId of toUnlock) room.locks.delete(fieldId);
+        // broadcast unlock từng field để client cập nhật UI
+        for (const fieldId of toUnlock) {
+          broadcast(roomId, { type: "unlock", room: roomId, fieldId, by: cid, at: Date.now() }, null);
+        }
+        // và gửi snapshot locks để client mới join sync đúng
+        broadcast(roomId, { type: "locks", room: roomId, payload: Object.fromEntries(room.locks) }, null);
+      }
+    }
 
     room.clients.delete(ws);
     if (room.clients.size === 0) {
