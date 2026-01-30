@@ -785,13 +785,6 @@ function resetForm() {
     document.getElementById('bmi').textContent = '-';
     document.getElementById('phanloai').textContent = '-';
     closePreview();
-
-    // Nếu đang chia sẻ online => broadcast "clear" để máy khác reset đồng bộ
-    try {
-      if (window.__SHARE_SYNC__?.enabled && typeof window.__SHARE_SYNC__.clearAllNow === "function") {
-        window.__SHARE_SYNC__.clearAllNow();
-      }
-    } catch (_) {}
   }
 }
 
@@ -1105,15 +1098,6 @@ if (chatInput) {
     sendTimer: 0,
     lastSentJson: "",
     boundEvents: false,
-    // client id per-tab để phân biệt ai đang lock (không cần đăng nhập)
-    clientId: (Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4)).toLowerCase(),
-
-    // lock map nhận từ remote: { [fieldId]: { owner, ts } }
-    locks: {},
-    // các field mình đang lock (để unlock khi blur/thoát)
-    myLocks: new Set(),
-    lastFocusedFieldId: null,
-    boundLockEvents: false,
   };
 
   function setNotice(html, show = true) {
@@ -1295,165 +1279,10 @@ if (chatInput) {
     }
   }
 
-  // ===============================
-  //  LOCK FIELD (đang chỉnh sửa)
-  //  - Khi 1 máy focus vào field => gửi "lock"
-  //  - Máy khác nhận lock => set readonly/disabled để tránh ghi đè
-  //  - Khi blur => gửi "unlock"
-  //  Ghi chú: server WS hiện tại chỉ cần broadcast JSON theo room là đủ.
-  // ===============================
-  function isLockableEl(el) {
-    if (!el || !el.id) return false;
-    const t = (el.type || "").toLowerCase();
-    if (t === "button" || t === "submit") return false;
-    // Cho phép lock input/textarea/select (kể cả checkbox/radio nếu muốn)
-    return el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT";
-  }
-
-  function setElLocked(el, locked, ownerId) {
-    if (!el) return;
-    const isCheckbox = (el.type === "checkbox");
-    const isRadio = (el.type === "radio");
-    const isSelect = (el.tagName === "SELECT");
-
-    // Chủ lock là mình => không khóa UI
-    if (locked && ownerId && ownerId === state.clientId) return;
-
-    // readonly/disabled để user không sửa được
-    if (locked) {
-      el.dataset.locked = "1";
-      el.dataset.lockOwner = ownerId || "";
-      const hint = "Đang được chỉnh sửa ở máy khác";
-      el.title = hint;
-
-      if (isSelect || isCheckbox || isRadio) {
-        el.disabled = true;
-      } else {
-        el.readOnly = true;
-      }
-
-      // nhẹ nhàng tạo cảm giác "đang lock" (không cần CSS riêng)
-      try { el.style.outline = "2px solid rgba(239,68,68,0.35)"; } catch (_) {}
-    } else {
-      delete el.dataset.locked;
-      delete el.dataset.lockOwner;
-      el.title = "";
-      // chỉ gỡ nếu không phải disabled bởi logic khác (VD OGTT)
-      if (isSelect || isCheckbox || isRadio) {
-        // Nếu field bị disable bởi logic khác (vd OGTT), đừng enable bừa
-        // => chỉ enable lại nếu không có thuộc tính disabled gốc
-        // (không có cách biết chắc, nên ưu tiên: enable lại, rồi renderFromState sẽ disable đúng)
-        el.disabled = false;
-      } else {
-        el.readOnly = false;
-      }
-      try { el.style.outline = ""; } catch (_) {}
-
-      // re-render để các disabled theo state (vd OGTT) đúng lại
-      if (typeof renderFromState === "function") {
-        try { renderFromState(); } catch (_) {}
-      }
-    }
-  }
-
-  function applyLock(fieldId, ownerId) {
-    if (!fieldId) return;
-    const el = document.getElementById(fieldId);
-    if (!el) return;
-    state.locks[fieldId] = { owner: ownerId || "", ts: Date.now() };
-    // nếu user đang focus vào field nhưng remote vừa lock (race) => blur để tránh gõ tiếp
-    if (document.activeElement === el && ownerId && ownerId !== state.clientId) {
-      try { el.blur(); } catch (_) {}
-    }
-    setElLocked(el, true, ownerId);
-  }
-
-  function applyUnlock(fieldId, ownerId) {
-    if (!fieldId) return;
-
-    // nếu đang lock bởi ai khác, chỉ unlock khi đúng owner (hoặc owner rỗng)
-    const cur = state.locks[fieldId];
-    if (cur && ownerId && cur.owner && cur.owner !== ownerId) return;
-
-    delete state.locks[fieldId];
-    const el = document.getElementById(fieldId);
-    if (!el) return;
-    setElLocked(el, false);
-  }
-
-  function clearAllRemoteLocks() {
-    // gỡ tất cả lock UI
-    for (const fid of Object.keys(state.locks || {})) {
-      const el = document.getElementById(fid);
-      if (el) setElLocked(el, false);
-    }
-    state.locks = {};
-  }
-
-  function sendLock(fieldId) {
-    if (!state.connected || state.applyingRemote) return;
-    if (!fieldId) return;
-    // tránh spam lock cùng field
-    if (state.myLocks.has(fieldId)) return;
-    state.myLocks.add(fieldId);
-    wsSend({ type: "lock", field: fieldId, owner: state.clientId, room: state.room });
-  }
-
-  function sendUnlock(fieldId) {
-    if (!fieldId) return;
-    if (state.myLocks.has(fieldId)) state.myLocks.delete(fieldId);
-    if (!state.connected) return;
-    wsSend({ type: "unlock", field: fieldId, owner: state.clientId, room: state.room });
-  }
-
-  function bindLockEvents() {
-    if (!formEl) return;
-    if (state.boundLockEvents) return;
-    state.boundLockEvents = true;
-    // focusin/out bubble => dễ bắt
-    formEl.addEventListener("focusin", (e) => {
-      const el = e.target;
-      if (!isLockableEl(el)) return;
-      // nếu field đang bị lock bởi remote => không cho focus
-      if (el?.dataset?.locked === "1" && el?.dataset?.lockOwner && el.dataset.lockOwner !== state.clientId) {
-        try { el.blur(); } catch (_) {}
-        return;
-      }
-
-      // unlock field cũ đang focus (nếu có)
-      if (state.lastFocusedFieldId && state.lastFocusedFieldId !== el.id) {
-        sendUnlock(state.lastFocusedFieldId);
-      }
-      state.lastFocusedFieldId = el.id;
-      sendLock(el.id);
-    });
-
-    formEl.addEventListener("focusout", (e) => {
-      const el = e.target;
-      if (!isLockableEl(el)) return;
-      // unlock khi rời field
-      if (state.lastFocusedFieldId === el.id) state.lastFocusedFieldId = null;
-      sendUnlock(el.id);
-    });
-
-    // Nếu đóng tab / reload: cố gắng unlock field đang giữ
-    window.addEventListener("beforeunload", () => {
-      try {
-        for (const fid of Array.from(state.myLocks)) {
-          wsSend({ type: "unlock", field: fid, owner: state.clientId, room: state.room });
-        }
-      } catch (_) {}
-    });
-  }
-
   function wsSend(obj) {
     if (!state.ws || state.ws.readyState !== 1) return;
-
-    // luôn gắn sender để client khác phân biệt
-    if (obj && typeof obj === "object" && !obj.sender) obj.sender = state.clientId;
-
     // gửi kèm room để server dễ route (kể cả khi join/presence có vấn đề)
-    if (state.room && (obj?.type === "state" || obj?.type === "clear" || obj?.type === "lock" || obj?.type === "unlock")) {
+    if (state.room && (obj?.type === "state" || obj?.type === "clear")) {
       obj.room = state.room;
     }
     state.ws.send(JSON.stringify(obj));
@@ -1504,7 +1333,6 @@ if (chatInput) {
 
       // Khi đã vào room thì mới bind events
       bindFormEvents();
-      bindLockEvents();
 
       if (showNotice) {
         renderSharedNotice(window.location.href);
@@ -1536,28 +1364,12 @@ if (chatInput) {
         return;
       }
 
-      // ===== lock field =====
-      if (msg.type === "lock") {
-        // bỏ qua lock của chính mình
-        if (msg.owner && msg.owner === state.clientId) return;
-        applyLock(msg.field, msg.owner || msg.sender);
-        return;
-      }
-      if (msg.type === "unlock") {
-        // bỏ qua unlock của chính mình
-        if (msg.owner && msg.owner === state.clientId) return;
-        applyUnlock(msg.field, msg.owner || msg.sender);
-        return;
-      }
-
       if (msg.type === "state") {
         applyData(msg.payload || {});
         return;
       }
       if (msg.type === "clear") {
         // reset local (không confirm)
-        try { clearAllRemoteLocks(); } catch (_) {}
-        try { state.myLocks.clear(); } catch (_) {}
         __resetFormUIOnly();
         return;
       }
@@ -1565,8 +1377,6 @@ if (chatInput) {
 
     ws.onclose = () => {
       state.connected = false;
-      // Mất kết nối => gỡ lock để không kẹt UI
-      try { clearAllRemoteLocks(); } catch (_) {}
       if (state.room) setShareStatus("offline", state.onlineCount);
       // không hiện notice khi chưa bấm chia sẻ; còn đang share thì giữ notice nhưng có thể reconnect
       // auto reconnect nhẹ nếu đã có room
@@ -1599,9 +1409,6 @@ if (chatInput) {
     const tuoi = document.getElementById('tuoi'); if (tuoi) tuoi.textContent = '-';
     const bmi = document.getElementById('bmi'); if (bmi) bmi.textContent = '-';
     const pl = document.getElementById('phanloai'); if (pl) pl.textContent = '-';
-    try { clearAllRemoteLocks(); } catch (_) {}
-    // restore các disabled theo state-driven
-    try { renderFromState(); } catch (_) {}
     try { closePreview(); } catch (_) {}
   }
 
