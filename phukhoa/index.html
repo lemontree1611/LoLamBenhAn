@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Phụ khoa</title>
+  <link rel="stylesheet" href="../source/style.css?v=1.0.2">
+  <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQmj7drT8_gPK2zwTd5CMdWRNdIQmHNP2T9Kg&s">
+
+  <!-- Thư viện tạo DOCX -->
+  <script src="../source/libs/index.umd.js"></script>
+  <script src="../source/libs/FileSaver.min.js"></script>
+</head>
+
+<body>
+
+<!-- Top Glass Bar (Actions + Chat) -->
+<div id="topbar" class="topbar glass" role="navigation" aria-label="Thanh công cụ">
+  <a class="tb-btn tb-home" href="../" aria-label="Trang chủ">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+      <path d="M12 3.2 3 10.4v10.1c0 .8.7 1.5 1.5 1.5H9.5v-6.7c0-.4.3-.8.8-.8h3.4c.4 0 .8.3.8.8V22h5c.8 0 1.5-.7 1.5-1.5V10.4L12 3.2Z" fill="currentColor"/>
+      <path d="M20.7 9.8 12 2.6 3.3 9.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+
+  <div class="tb-actions" aria-label="Tác vụ">
+    
+    <button type="button" class="tb-btn" id="btn-share" title="Chia sẻ">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24">
+        <path d="M12 3v10" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"/>
+        <path d="M8.5 6.5 12 3l3.5 3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/>
+        <path d="M7.5 10.5h9A3 3 0 0 1 19.5 13.5v5A3.5 3.5 0 0 1 16 22H8A3.5 3.5 0 0 1 4.5 18.5v-5A3 3 0 0 1 7.5 10.5Z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.8"/>
+      </svg>
+      <span>Chia sẻ</span>
+    </button>
+<button type="button" class="tb-btn" id="btn-export" title="Xuất file Word">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M14 3v5h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M12 11v6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M9.5 14.5 12 17l2.5-2.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Xuất file</span>
+    </button>
+
+    <button type="button" class="tb-btn" id="btn-preview" title="Xem trước">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path d="M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      </svg>
+      <span>Xem trước</span>
+    </button>
+
+    <button type="button" class="tb-btn" id="btn-reset" title="Xoá hết">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path d="M4 7h16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M7 7l1 14h8l1-14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      <span>Xoá hết</span>
+    </button>
+  </div>
+
+  <button type="button" class="tb-btn tb-chat" id="btn-chat" aria-expanded="false" aria-controls="chat-panel" title="Chat">
+    <img class="tb-chat-img" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQmj7drT8_gPK2zwTd5CMdWRNdIQmHNP2T9Kg&s" alt="" aria-hidden="true" />
+    <span class="tb-chat-text">Let me cook bro</span>
+  </button>
+</div>
+
+
+<style>
+  /* Hide legacy action row + old floating chat bubble (toolbar replaces them) */
+  .actions{display:none !important;}
+  #chat-bubble{display:none !important;}
+
+  /* Mini layout helpers for new "Bệnh sử" row */
+  .inline-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .inline-row label{margin:0;}
+  .inline-row input,.inline-row select{min-height:38px;}
+</style>
+
+
+<h1>Form BỆNH ÁN PHỤ KHOA</h1>
+<p class="small">Nhập thông tin rồi nhấn <strong>XUẤT FILE WORD</strong> để lưu bệnh án hoàn chỉnh về máy.</p>
+
+<div id="share-notice" style="display:none"></div>
+
+<!-- ✅ ĐỒNG BỘ: main.js resetForm() đang reset theo #benhanForm -->
+<form id="benhanForm" onsubmit="return false;">
+  <div class="section">
+    <h2>A. PHẦN HÀNH CHÁNH</h2>
+    <div class="row">
+      <div class="col">
+        <label>1. Họ và tên</label>
+        <input id="hoten" type="text" placeholder="Lò Thị T." />
+      </div>
+      <div class="col">
+        <label>2. Năm sinh</label>
+        <input id="namsinh" type="number" min="1900" max="2100" placeholder="2000" />
+        <div class="small">Tuổi: <span id="tuoi">-</span></div>
+      </div>
+    </div>
+
+    <label>3. PARA</label>
+    <input id="para" type="text" placeholder="2002" />
+
+    <label>4. Dân tộc</label>
+    <input id="dantoc" type="text" />
+
+    <label>5. Nghề nghiệp</label>
+    <input id="nghenghiep" type="text" />
+
+    <label>6. Địa chỉ</label>
+    <input id="diachi" type="text" />
+
+    <label>7. Ngày giờ vào viện</label>
+    <input id="ngaygio" type="datetime-local" />
+  </div>
+
+  <div class="section">
+    <h2>B. PHẦN BỆNH ÁN</h2>
+    <h2>I. Hỏi bệnh</h2>
+
+    <label>1. Lý do vào viện</label>
+    <textarea id="lydo"></textarea>
+
+    <label>2. Tiền sử</label>
+    <textarea id="tiensu">a) Bản thân:
+  - Sản khoa: 
+    + Lấy chồng năm 24 tuổi
+    + PARA: 1001 (sinh thường không biến chứng, 37 tuần, CNLS 3100g, hậu sản ổn)
+  - Phụ khoa:
+    + Kinh đầu năm 13 tuổi, chu kỳ đều 30 ngày, hành kinh 5 ngày, lượng 4-5 BVS/ngày đầu và giảm dần qua các ngày, máu đỏ sậm lẫn máu cục, không thống kinh.
+    + Không mắc bệnh phụ khoa
+    + Phương pháp tránh thai: Không
+  - Nội khoa: Không THA, ĐTĐ2
+  - Ngoại khoa: Chưa từng phẫu thuật
+  - Thói quen: Không thuốc lá rượu bia
+  - Không tiền sử dị ứng thuốc, thức ăn
+b) Gia đình: Không ghi nhận bệnh lý liên quan</textarea>
+    <label>3. Bệnh sử</label>
+
+    <!-- Kinh cuối -->
+    <div class="inline-row" style="margin:6px 0 10px;">
+      <label style="min-width:90px;">Kinh cuối:</label>
+      <select id="kinhCuoiMode" style="min-width:120px;">
+        <option value="quen">Quên</option>
+        <option value="ngay">Nhập ngày</option>
+      </select>
+      <input id="kinhCuoiDate" type="date" disabled style="min-width:180px;" />
+      <input id="kinhCuoiTinhChat" type="text" placeholder="Tính chất" disabled style="flex:1;min-width:220px;" />
+    </div>
+
+    <!-- Kinh áp cuối -->
+    <div class="inline-row" style="margin:6px 0 10px;">
+      <label style="min-width:90px;">Kinh áp cuối:</label>
+      <select id="kinhApCuoiMode" style="min-width:120px;">
+        <option value="quen">Quên</option>
+        <option value="ngay">Nhập ngày</option>
+      </select>
+      <input id="kinhApCuoiDate" type="date" disabled style="min-width:180px;" />
+    </div>
+
+    <!-- Mô tả diễn tiến -->
+    <textarea id="benhsu_nhapvien" placeholder="Quá trình nhập viện / diễn tiến bệnh"></textarea>
+  </div>
+
+  <div class="section">
+    <h2>II. KHÁM BỆNH</h2>
+
+    <label>1. Toàn trạng</label>
+    <div>
+      Mạch <input type="number" id="mach" style="width: 60px"> lần/phút,
+      nhiệt độ <input type="number" step="0.1" id="nhietdo" style="width:60px">°C
+    </div>
+    <div>
+      Huyết áp <input type="number" id="ha_tren" style="width:60px">/<input type="number" id="ha_duoi" style="width:60px"> mmHg,
+      nhịp thở <input type="number" id="nhiptho" style="width:60px"> lần/phút
+    </div>
+    <div>
+      Chiều cao: <input type="number" id="chieucao" style="width:60px"> cm,
+      cân nặng: <input type="number" id="cannang" style="width:60px"> kg,
+      BMI = <span id="bmi">-</span> kg/m²
+      => Phân loại <span id="phanloai">-</span> theo WHO Asia
+    </div>
+
+    <textarea id="tongtrang">- Bệnh tỉnh, tiếp xúc tốt
+- Da niêm hồng, chi ấm, mạch rõ
+- Không phù, không dấu xuất huyết
+- Tuyến giáp không to
+- Hạch ngoại vi không sờ chạm</textarea>
+
+    <label>2. Các cơ quan</label>
+
+    <div class="row">
+      <div class="col">
+        <label>a) Tuần hoàn:</label>
+        <select id="timmachSelect" onchange="insertTimmach()">
+          <option value="">-- Chọn --</option>
+          <option value="T1 T2 đều rõ, không âm thổi">T1 T2 đều rõ, không âm thổi</option>
+          <option value="- Lòng ngực cân đối, không sẹo mổ cũ, mỏm tim ở liên sườn V đường trung đòn (T) diện đập 2x2cm, tĩnh mạch cổ không nổi 45o
+- Không phát hiện ổ đập bất thường, rung miu (-), Harzer (-)
+- T1 T2 đều rõ, nảy cùng nhịp mạch, tần số  lần/phút, không âm thổi">- Lòng ngực cân đối, không sẹo mổ cũ...</option>
+        </select>
+        <textarea id="timmach" rows="4"></textarea>
+      </div>
+
+      <div class="col">
+        <label>b) Hô hấp</label>
+        <select id="hohapSelect" onchange="insertHohap()">
+          <option value="">-- Chọn --</option>
+          <option value="Rì rào phế nang êm dịu 2 phế trường, không ran">Rì rào phế nang êm dịu 2 phế trường, không ran</option>
+          <option value="- Ngực di động theo nhịp thở, các khoảng gian sườn không dãn, không co kéo cơ hô hấp phụ
+- Rung thanh đều 2 bên, gõ trong
+- Rì rào phế nang êm dịu 2 phế trường, không ran">- Ngực di động theo nhịp thở...</option>
+        </select>
+        <textarea id="hopho"></textarea>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col">
+        <label>c) Thận - tiết niệu</label>
+        <select id="thanSelect" onchange="insertthan()">
+          <option value="">-- Chọn --</option>
+          <option value="Cầu bàng quang (-), chạm thận (-)">Cầu bàng quang (-), chạm thận (-)</option>
+          <option value="- Hố thắt lưng không sưng nề
+- Cầu bàng quang (-), chạm thận (-), rung thận (-), điểm niệu quản (-)">- Hố thắt lưng không sưng nề...</option>
+        </select>
+        <textarea id="than"></textarea>
+      </div>
+
+      <div class="col">
+        <label>d) Thần kinh</label>
+        <select id="thankinhSelect" onchange="insertthankinh()">
+          <option value="">-- Chọn --</option>
+          <option value="Cổ mềm, không dấu thần kinh khu trú">Cổ mềm, không dấu thần kinh khu trú</option>
+          <option value="- Chức năng thần kinh cao cấp: GCS 15/15
+- Tư thế dáng bộ: Dáng đi thẳng
+- 12 đôi dây thần kinh sọ:
+- Hệ vận động: Sức cơ 5/5, trương lực trung bình, không rung giật
+- Hệ cảm giác: Nông, sâu
+- Phản xạ: Phản xạ gân xương 2+, phản xạ da bụng (+), Babinski (-), hoffman (-)
+- Dấu màng não: Cổ mềm, Kernig (-)
+- Hệ thần kinh thực vật: Không rối loạn cơ vòng">- Chức năng thần kinh cao cấp...</option>
+        </select>
+        <textarea id="thankinh"></textarea>
+      </div>
+
+      <div class="col">
+        <label>e) Cơ - Xương - Khớp</label>
+        <select id="cokhopSelect" onchange="insertcokhop()">
+          <option value="">-- Chọn --</option>
+          <option value="Không giới hạn vận động">Không giới hạn vận động</option>
+          <option value="- Cột sống không gù vẹo, các khớp không biến dạng
+- Các khớp không viêm, ấn không đau, dấu chuông bấm (-), lasegue (-), bonnet (-)
+- Chiều dài chi 2 bên không lệch">- Cột sống không gù vẹo...</option>
+        </select>
+        <textarea id="cokhop"></textarea>
+      </div>
+
+      <div class="col">
+        <label>f) Các cơ quan khác: </label>
+        <textarea id="coquankhac">Không phát hiện bất thường</textarea>
+      </div>
+    </div><!-- /row -->
+
+    <label>3. Khám chuyên khoa</label>
+    <textarea id="khamchuyenkhoa">- Vú: 2 bên cân đối, núm vú không tụt, không sang thương hay chảy dịch
+- Bụng: Cân đối, di động theo nhịp thở, không sẹo mỗ cũ, không u cục, không điểm đau khu trú
+a) Khám ngoài:
+- Vùng da trên vệ, tầng sinh môn sậm màu, không lở loét hay sưng nề
+- Cơ quan sinh dục ngoài: âm hộ, môi lớn, môi bé, âm vật không ghi nhận bất thường
+- Niệu đạo, âm đạo không chảy dịch bất thường
+b) Khám trong:
+- Khám âm đạo bằng mỏ vịt:
++ Niêm mạc âm đạo hồng, trơn láng, không sang thương, cùng đổ động ít dịch nhầy trong
++ CTC đóng, không chảy dịch, niêm mạc hồng, bề mặt trơn láng
+- Kham âm đạo bằng tay:
++ Tuyến bartholin không sưng đau
++ Bề mặt âm đạo trơn láng, cùng đồ mềm, ấn không đau
++ CTC mật độ chắc, không u cục, lắc không đau
++ Tử cung kích thước bình thường, hướng trung gian
++ Phần phụ 2 bên không sờ chạm, ấn không đau</textarea>
+
+    <label>4. Các cận lâm sàng đã làm</label>
+    <textarea id="cls_dalam" placeholder="CLS đã làm tính đến thời điểm khám"></textarea>
+  </div>
+
+  <div class="section">
+    <h2>III. KẾT LUẬN</h2>
+    <label>1. Tóm tắt bệnh án</label>
+    <textarea id="tomtat" rows="5"></textarea>
+
+    <label>2. Chẩn đoán sơ bộ</label>
+    <textarea id="chandoanso"></textarea>
+
+    <label>3. Chẩn đoán phân biệt</label>
+    <textarea id="chandoanpd"></textarea>
+
+    <label>4. Đề nghị cận lâm sàng và kết quả</label>
+    <div>a) Đề nghị cận lâm sàng</div>
+    <label>- Thường quy</label>
+    <textarea id="cls_thuongquy">CTM; TPTNT; glucose máu; định lượng AST, ALT, ure, creatinin huyết thanh; eGFR; ion đồ 3 thông số; ECG</textarea>
+    <label>- Chẩn đoán</label>
+    <textarea id="cls_chuandoan"></textarea>
+
+    <div style="margin-top: 10px;">b) Kết quả</div>
+    <textarea id="ketqua"></textarea>
+
+    <label>5. Chẩn đoán xác định</label>
+    <textarea id="chandoanxacdinh"></textarea>
+
+    <!-- ✅ ĐỔI VỊ TRÍ: ĐIỀU TRỊ TRƯỚC, TIÊN LƯỢNG SAU -->
+    <label>6. Điều trị</label>
+    <label>a) Hướng điều trị</label>
+    <textarea id="huongdieutri"></textarea>
+    <label>b) Điều trị cụ thể</label>
+    <textarea id="dieutri"></textarea>
+
+    <label>7. Tiên lượng</label>
+    <textarea id="tienluong"></textarea>
+  </div>
+
+  <div class="section">
+    <h2>C. PHẦN BIỆN LUẬN</h2>
+    <textarea id="bienluan" style="min-height:120px;"></textarea>
+  </div>
+
+  <div class="actions">
+    <button id="btnExport" type="button" onclick="generateDocx()">📄 Xuất file Word</button>
+    <button id="btnPreview" type="button" class="secondary" onclick="openPreview()">🔍 Xem trước</button>
+    <button id="btnReset" type="button" class="secondary" onclick="resetForm()">🧽 Xoá hết</button>
+  </div>
+</form>
+
+<!-- Nút bong bóng chat -->
+<div id="chat-bubble">
+  <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTI27Ka8uPBelZj9PLqzmujhZvM6R_jcE_Y9g&s" alt="Chat" />
+</div>
+
+<!-- Khung chat -->
+<div id="chat-panel" class="chat-panel">
+  <div class="chat-header">💬 Biện luận cùng bot Lò
+    <span id="chat-close">&times;</span>
+  </div>
+  <div class="chat-messages" id="chat-messages"></div>
+  <div class="chat-input">
+    <input type="text" id="chat-text" placeholder="Nhập tin nhắn..." />
+    <button id="chat-send">Gửi</button>
+  </div>
+</div>
+
+<!-- Preview popup -->
+<div id="previewModal" class="modal-backdrop" aria-hidden="true">
+  <div class="modal-shell" role="dialog" aria-modal="true" aria-label="Xem trước">
+    <div class="modal-header">
+      <div class="title">Xem trước (khuôn A4)</div>
+      <button class="modal-close" type="button" onclick="closePreview()">Đóng ✕</button>
+    </div>
+
+    <div class="modal-body">
+      <iframe
+        id="previewFrame"
+        style="
+          width:100%;
+          height:85vh;
+          border:0;
+          background:#fff;
+          border-radius:12px;
+        ">
+      </iframe>
+    </div>
+  </div>
+</div>
+
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  <p>Đang tạo file DOCX...</p>
+</div>
+
+<script src="main.js?v=1.0.3"></script>
+
+</body>
+</html>
