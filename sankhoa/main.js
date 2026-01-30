@@ -1221,42 +1221,39 @@ if (chatInput) {
 
     state.applyingRemote = true;
     try {
-      let touchedKhamThai = false;
-
+      // Khi nhận remote updates: checkbox TCN* phải cập nhật syncState + renderFromState()
+      // để UI (ẩn/hiện box + OGTT + tính toán dự sinh + benhsu_khamthai) luôn đúng.
+      let touchedTCN = false;
       for (const el of collectFields()) {
         if (!(el.id in dataObj)) continue;
 
         const v = dataObj[el.id];
 
-        // ✅ checkbox/radio: luôn overwrite để UI sync 100% (kể cả đang focus)
-        if (el.type === "checkbox") {
+        // ✅ Checkbox / radio: luôn overwrite (kể cả đang focus) để tránh lệch trạng thái
+        const isCheckbox = (el.type === "checkbox");
+        const isRadio = (el.type === "radio");
+        if (!isCheckbox && !isRadio) {
+          // input/textarea/select bình thường: không overwrite field đang focus
+          if (document.activeElement === el) continue;
+        }
+
+        if (isCheckbox) {
           const newChecked = !!v;
           if (el.checked !== newChecked) el.checked = newChecked;
 
-          // TCN state-driven: cập nhật syncState để renderFromState() show/hide đúng
+          // ✅ đồng bộ state-driven TCN
           if (typeof syncState === "object" && syncState && (el.id in syncState)) {
             if (syncState[el.id] !== newChecked) {
               syncState[el.id] = newChecked;
-              touchedKhamThai = true;
+              touchedTCN = true;
             }
           }
 
-          el.dispatchEvent(new Event("change", { bubbles: true }));
-          continue;
+        } else if (isRadio) {
+          el.checked = (String(v) === String(el.value));
+        } else {
+          el.value = (v ?? "");
         }
-
-        if (el.type === "radio") {
-          const newChecked = (String(v) === String(el.value));
-          if (el.checked !== newChecked) el.checked = newChecked;
-          el.dispatchEvent(new Event("change", { bubbles: true }));
-          continue;
-        }
-
-        // input/textarea/select: không overwrite field đang focus
-        if (document.activeElement === el) continue;
-
-        const newVal = (v ?? "");
-        if (el.value !== newVal) el.value = newVal;
 
         // Nếu là select mẫu thì đổ vào textarea tương ứng
         if (el.tagName === "SELECT") {
@@ -1266,19 +1263,16 @@ if (chatInput) {
 
         el.dispatchEvent(new Event("input", { bubbles: true }));
         el.dispatchEvent(new Event("change", { bubbles: true }));
+      }
 
-        // các field khám thai thay đổi -> render lại tổng hợp
-        if (typeof el.id === "string" && el.id.startsWith("tcn")) touchedKhamThai = true;
+      // ✅ Re-render UI TCN1/2/3 + OGTT (show/hide + computed)
+      if (touchedTCN && typeof renderFromState === "function") {
+        try { renderFromState(); } catch (_) {}
       }
 
       // đảm bảo các computed cập nhật
       try { tinhBMI(); } catch (_) {}
       try { updateTomtat(); } catch (_) {}
-
-      // ✅ Bắt buộc: renderFromState để cập nhật box TCN1/2/3 + due date + benhsu_khamthai
-      if (touchedKhamThai) {
-        try { renderFromState(); } catch (_) {}
-      }
 
     } finally {
       state.applyingRemote = false;
