@@ -1,5 +1,0 @@
-{
-  "rewrites": [
-    { "source": "/chat", "destination": "https://lolambenhan.onrender.com/chat" }
-  ]
-}
