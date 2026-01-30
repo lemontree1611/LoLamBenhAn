@@ -788,12 +788,24 @@ async function generateDocx() {
 // ===============================
 function resetForm() {
   if (confirm('Xoá hết dữ liệu trong form?')) {
+    // Đồng bộ xoá (nếu đang share)
+    try { window.__SHARE_SYNC__?.clearAllNow?.(); } catch (_) {}
+
+    // Reset local
     document.getElementById('benhanForm')?.reset();
-    document.getElementById('tuoi').textContent = '-';
-    document.getElementById('wa').textContent = '-';
-    document.getElementById('ha').textContent = '-';
-    document.getElementById('wh').textContent = '-';
-    closePreview();
+    const tuoi = document.getElementById('tuoi'); if (tuoi) tuoi.textContent = '-';
+    const wa = document.getElementById('wa'); if (wa) wa.textContent = '-';
+    const ha = document.getElementById('ha'); if (ha) ha.textContent = '-';
+    const wh = document.getElementById('wh'); if (wh) wh.textContent = '-';
+    try { closePreview(); } catch (_) {}
+
+    // Đồng bộ lại state rỗng qua websocket (phòng trường hợp server không support type 'clear')
+    try { window.__SHARE_SYNC__?.sendStateNow?.(); } catch (_) {}
+
+    // Trigger các tính năng phụ thuộc để UI đồng nhất (tóm tắt/z-score...)
+    try { document.getElementById('chieucao')?.dispatchEvent(new Event('input', { bubbles: true })); } catch (_) {}
+    try { document.getElementById('cannang')?.dispatchEvent(new Event('input', { bubbles: true })); } catch (_) {}
+    try { document.getElementById('ngaysinh')?.dispatchEvent(new Event('input', { bubbles: true })); } catch (_) {}
   }
 }
 
@@ -1411,6 +1423,8 @@ if (chatInput) {
   window.__SHARE_SYNC__ = window.__SHARE_SYNC__ || {};
   window.__SHARE_SYNC__.enabled = false;
   window.__SHARE_SYNC__.saveFieldNow = () => scheduleSendState(false); // compat cho dropdown helper
+  // gửi ngay toàn bộ state hiện tại (dùng cho reset/đồng bộ cưỡng bức)
+  window.__SHARE_SYNC__.sendStateNow = () => scheduleSendState(true);
   window.__SHARE_SYNC__.clearAllNow = () => {
     if (!state.connected) return;
     wsSend({ type: "clear" });
