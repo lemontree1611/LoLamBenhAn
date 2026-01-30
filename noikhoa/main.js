@@ -787,7 +787,14 @@ async function sendMessage() {
     saveChatHistory();
 
     // UI: bot message (hiển thị reply “sạch” — không cần hiện context)
-    chatMessages.innerHTML += `<div class="msg bot">${escapeHtml(reply)}</div>`;
+    const html = marked.parse(reply);
+
+    chatMessages.innerHTML += `
+      <div class="msg bot markdown-body">
+        ${html}
+      </div>
+    `;
+
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
   } catch (err) {
