@@ -7,9 +7,8 @@
   --sub:#6b7280;
   --shadow:0 10px 30px rgba(0,0,0,.10);
   --radius:22px;
-  font-family: Inter, system-ui, -apple-system,
-               BlinkMacSystemFont, "Segoe UI",
-               Roboto, Arial, sans-serif;
+
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI",Roboto,Arial,sans-serif;
 }
 
 
@@ -166,5 +165,6 @@ body{margin:0;background:var(--bg);color:var(--text);overflow:hidden}
   z-index:60;
   box-shadow:0 10px 30px rgba(0,0,0,.18);
 }
+
 
 
