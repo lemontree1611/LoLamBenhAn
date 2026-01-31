@@ -40,7 +40,7 @@ app.use(
         ? cb(null, true)
         : cb(new Error("Not allowed by CORS"));
     },
-    methods: ["GET", "POST", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"]
   })
 );
@@ -187,74 +187,299 @@ app.post("/comments/:id/toggle-heart", requireAdmin, async (req, res) => {
   }
 });
 
-// Delete comment (admin only)
-app.delete("/comments/:id", requireAdmin, async (req, res) => {
-  if (!pool) return res.status(500).json({ error: "DB not configured" });
+// ================== CHAT PROTECTION + FALLBACK HELPERS ==================
 
-  try {
-    const id = Number(req.params.id);
-    if (!Number.isFinite(id)) return res.status(400).json({ error: "Invalid id" });
+// --- Simple in-memory rate limit (per IP, per minute) ---
+const chatRate = new Map(); // ip -> { windowStart, count }
+function rateLimitChat(ip) {
+  const RPM = Number(process.env.CHAT_MAX_RPM || 20);
+  const now = Date.now();
+  const WINDOW = 60_000;
 
-    const { rowCount } = await pool.query(`delete from comments where id = $1`, [id]);
-
-    if (rowCount === 0) return res.status(404).json({ error: "Not found" });
-    res.json({ ok: true, id });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "DB error" });
+  const cur = chatRate.get(ip) || { windowStart: now, count: 0 };
+  if (now - cur.windowStart >= WINDOW) {
+    cur.windowStart = now;
+    cur.count = 0;
   }
-});
+  cur.count += 1;
+  chatRate.set(ip, cur);
+
+  if (cur.count > RPM) {
+    return {
+      ok: false,
+      retryAfterSec: Math.ceil((WINDOW - (now - cur.windowStart)) / 1000)
+    };
+  }
+  return { ok: true };
+}
+
+// --- Queue + concurrency (per IP) ---
+const ipActive = new Map(); // ip -> number active
+const chatQueue = [];       // { ip, fn, resolve, reject, enqueuedAt }
+
+function runNextFromQueue() {
+  if (chatQueue.length === 0) return;
+
+  const MAX_PER_IP = Number(process.env.CHAT_MAX_CONCURRENT_PER_IP || 1);
+
+  for (let i = 0; i < chatQueue.length; i++) {
+    const job = chatQueue[i];
+    const active = ipActive.get(job.ip) || 0;
+
+    if (active < MAX_PER_IP) {
+      chatQueue.splice(i, 1);
+      ipActive.set(job.ip, active + 1);
+
+      Promise.resolve()
+        .then(job.fn)
+        .then(job.resolve)
+        .catch(job.reject)
+        .finally(() => {
+          const a = (ipActive.get(job.ip) || 1) - 1;
+          if (a <= 0) ipActive.delete(job.ip);
+          else ipActive.set(job.ip, a);
+          runNextFromQueue();
+        });
+
+      return;
+    }
+  }
+}
+
+function withChatQueue(ip, fn) {
+  const MAX_QUEUE = Number(process.env.CHAT_QUEUE_MAX || 50);
+  if (chatQueue.length >= MAX_QUEUE) {
+    const e = new Error("Server is busy. Queue is full.");
+    e.status = 503;
+    throw e;
+  }
+
+  return new Promise((resolve, reject) => {
+    chatQueue.push({ ip, fn, resolve, reject, enqueuedAt: Date.now() });
+    runNextFromQueue();
+  });
+}
+
+// --- Circuit breaker / cooldown on 429 ---
+const cooldownUntil = new Map(); // key -> timestamp(ms)
+function inCooldown(key) {
+  return Date.now() < (cooldownUntil.get(key) || 0);
+}
+function setCooldown(key) {
+  const minMs = Number(process.env.COOLDOWN_MIN_MS || 30000);
+  const maxMs = Number(process.env.COOLDOWN_MAX_MS || 60000);
+  const dur = minMs + Math.floor(Math.random() * Math.max(1, (maxMs - minMs)));
+  cooldownUntil.set(key, Date.now() + dur);
+  return dur;
+}
+
+function safeJson(str) {
+  try { return JSON.parse(str); } catch { return null; }
+}
+
+function isRateLimitOrQuota(status, rawText) {
+  if (status === 429) return true;
+  const j = safeJson(rawText);
+  const msg = String(rawText || "").toLowerCase();
+
+  if (j?.error?.status === "RESOURCE_EXHAUSTED") return true;
+  if (j?.error?.code === 429) return true;
+  if (msg.includes("resource_exhausted")) return true;
+  if (msg.includes("rate limit")) return true;
+  if (msg.includes("quota")) return true;
+
+  return false;
+}
+
+// --- Reduce history / "summarize" without extra API calls ---
+// Snippet length is fixed at 180 chars (no env toggle).
+function condenseMessages(messages) {
+  const keepLast = Number(process.env.CHAT_KEEP_LAST || 10);
+  const snippetLen = 180;
+
+  if (messages.length <= keepLast) return messages;
+
+  const head = messages.slice(0, Math.max(0, messages.length - keepLast));
+  const tail = messages.slice(-keepLast);
+
+  const summaryLines = head.map((m, idx) => {
+    const role = m.role || "user";
+    const text = String(m.content || "").replace(/\s+/g, " ").trim();
+    const snip = text.length > snippetLen ? text.slice(0, snippetLen) + "…" : text;
+    return `${idx + 1}. ${role}: ${snip}`;
+  });
+
+  const summaryMsg = {
+    role: "system",
+    content:
+      "TÓM TẮT NGỮ CẢNH TRƯỚC ĐÓ (rút gọn tự động):\n" +
+      summaryLines.join("\n")
+  };
+
+  return [summaryMsg, ...tail];
+}
+
+// --- Provider calls ---
+async function callGemini({ apiKey, messages }) {
+  const key = "gemini:gemini-2.5-flash";
+  if (inCooldown(key)) {
+    return { ok: false, status: 429, raw: "Gemini in cooldown" };
+  }
+
+  const contents = messages.map(m => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: m.content }]
+  }));
+
+  const url =
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent" +
+    `?key=${apiKey}`;
+
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contents })
+  });
+
+  const raw = await r.text();
+
+  if (!r.ok && isRateLimitOrQuota(r.status, raw)) {
+    setCooldown(key);
+  }
+
+  return { ok: r.ok, status: r.status, raw };
+}
+
+async function callOpenAIChat({ apiKey, messages }) {
+  const key = "openai:gpt-3.5-turbo";
+  if (inCooldown(key)) {
+    return { ok: false, status: 429, raw: "OpenAI in cooldown" };
+  }
+
+  const payload = {
+    model: "gpt-3.5-turbo",
+    messages: messages.map(m => ({
+      role: m.role === "model" ? "assistant" : m.role,
+      content: String(m.content ?? "")
+    })),
+    temperature: 0.7
+  };
+
+  const r = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const raw = await r.text();
+
+  if (!r.ok && isRateLimitOrQuota(r.status, raw)) {
+    setCooldown(key);
+  }
+
+  return { ok: r.ok, status: r.status, raw };
+}
 
 
-
-// ====== CHAT API (Gemini) ======
+// ====== CHAT API (Gemini -> fallback OpenAI) ======
 app.post("/chat", async (req, res) => {
   try {
-    const { messages } = req.body || {};
+    const ip =
+      (req.headers["x-forwarded-for"] ? String(req.headers["x-forwarded-for"]).split(",")[0].trim() : "") ||
+      req.socket?.remoteAddress ||
+      "unknown";
 
-    if (!Array.isArray(messages)) {
-      return res.status(400).json({ error: "messages must be an array" });
-    }
-
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-    if (!GEMINI_API_KEY) {
-      return res.status(500).json({ error: "Missing GEMINI_API_KEY" });
-    }
-
-    // Chuyển messages -> format Gemini
-    const contents = messages.map(m => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }]
-    }));
-
-    const url =
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent" +
-      `?key=${GEMINI_API_KEY}`;
-
-    const r = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contents })
-    });
-
-    const raw = await r.text();
-
-    if (!r.ok) {
-      return res.status(r.status).json({
-        error: "Gemini API error",
-        detail: raw
+    // Rate limit per IP (requests per minute)
+    const rl = rateLimitChat(ip);
+    if (!rl.ok) {
+      return res.status(429).json({
+        error: "Rate limited",
+        retry_after_sec: rl.retryAfterSec
       });
     }
 
-    const data = JSON.parse(raw);
+    // Queue + per-IP concurrency cap
+    const result = await withChatQueue(ip, async () => {
+      const { messages } = req.body || {};
 
-    const answer = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      if (!Array.isArray(messages)) {
+        const e = new Error("messages must be an array");
+        e.status = 400;
+        throw e;
+      }
 
-    res.json({ answer });
+      const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+      if (!GEMINI_API_KEY) {
+        const e = new Error("Missing GEMINI_API_KEY");
+        e.status = 500;
+        throw e;
+      }
+
+      // Reduce history / create a lightweight summary message
+      const compact = condenseMessages(messages);
+
+      // 1) Try Gemini first
+      const g = await callGemini({ apiKey: GEMINI_API_KEY, messages: compact });
+
+      if (g.ok) {
+        const data = safeJson(g.raw) || {};
+        const answer = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        return { answer, provider_used: "gemini", model_used: "gemini-2.5-flash" };
+      }
+
+      // If Gemini failed for reasons other than rate/quota -> stop
+      if (!isRateLimitOrQuota(g.status, g.raw)) {
+        const e = new Error("Gemini API error");
+        e.status = g.status || 500;
+        e.detail = g.raw;
+        throw e;
+      }
+
+      // 2) Fallback to OpenAI when Gemini is rate-limited/quota
+      const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+      if (!OPENAI_API_KEY) {
+        const e = new Error("Gemini rate-limited, and Missing OPENAI_API_KEY for fallback");
+        e.status = 429;
+        e.detail = g.raw;
+        throw e;
+      }
+
+      const o = await callOpenAIChat({ apiKey: OPENAI_API_KEY, messages: compact });
+
+      if (o.ok) {
+        const data = safeJson(o.raw) || {};
+        const answer = data?.choices?.[0]?.message?.content || "";
+        return { answer, provider_used: "openai", model_used: "gpt-3.5-turbo" };
+      }
+
+      const status = o.status || 500;
+      const payload = {
+        error: "Fallback provider error",
+        gemini_status: g.status,
+        openai_status: o.status,
+        detail: safeJson(o.raw) ? safeJson(o.raw) : o.raw
+      };
+
+      return { __error: true, __status: status, __payload: payload };
+    });
+
+    if (result && result.__error) {
+      return res.status(result.__status).json(result.__payload);
+    }
+
+    return res.json(result);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const status = err.status || 500;
+    return res.status(status).json({
+      error: err.message || "Server error",
+      detail: err.detail || null
+    });
   }
 });
+
 
 // ================== HTTP SERVER ==================
 const server = http.createServer(app);
