@@ -350,14 +350,31 @@ async function callGemini({ apiKey, messages }) {
   return { ok: r.ok, status: r.status, raw };
 }
 
-async function callOpenAIChat({ apiKey, messages }) {
-  const key = "openai:gpt-3.5-turbo";
+
+function getGroqModels() {
+  // Prefer GROQ_MODELS (comma-separated). Fallback to GROQ_MODEL, then a safe default.
+  const list = String(process.env.GROQ_MODELS || "").trim();
+  if (list) {
+    return list.split(",").map(s => s.trim()).filter(Boolean);
+  }
+  const single = String(process.env.GROQ_MODEL || "").trim();
+  if (single) return [single];
+  return ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
+}
+
+
+
+async function callGroqChat({ apiKey, model, messages }) {
+  // Groq provides an OpenAI-compatible Chat Completions API:
+  // POST https://api.groq.com/openai/v1/chat/completions
+  const key = `groq:${model}`;
+
   if (inCooldown(key)) {
-    return { ok: false, status: 429, raw: "OpenAI in cooldown" };
+    return { ok: false, status: 429, raw: "Groq in cooldown" };
   }
 
   const payload = {
-    model: "gpt-3.5-turbo",
+    model,
     messages: messages.map(m => ({
       role: m.role === "model" ? "assistant" : m.role,
       content: String(m.content ?? "")
@@ -365,7 +382,7 @@ async function callOpenAIChat({ apiKey, messages }) {
     temperature: 0.7
   };
 
-  const r = await fetch("https://api.openai.com/v1/chat/completions", {
+  const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -384,7 +401,9 @@ async function callOpenAIChat({ apiKey, messages }) {
 }
 
 
-// ====== CHAT API (Gemini -> fallback OpenAI) ======
+
+
+// ====== CHAT API (Gemini -> fallback Groq) ======
 app.post("/chat", async (req, res) => {
   try {
     const ip =
@@ -438,29 +457,52 @@ app.post("/chat", async (req, res) => {
         throw e;
       }
 
-      // 2) Fallback to OpenAI when Gemini is rate-limited/quota
-      const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-      if (!OPENAI_API_KEY) {
-        const e = new Error("Gemini rate-limited, and Missing OPENAI_API_KEY for fallback");
+      // 2) Fallback to Groq when Gemini is rate-limited/quota
+      const GROQ_API_KEY = process.env.GROQ_API_KEY;
+      if (!GROQ_API_KEY) {
+        const e = new Error("Gemini rate-limited, and Missing GROQ_API_KEY for fallback");
         e.status = 429;
         e.detail = g.raw;
         throw e;
       }
 
-      const o = await callOpenAIChat({ apiKey: OPENAI_API_KEY, messages: compact });
+      const groqModels = getGroqModels();
+      let lastGroq = null;
 
-      if (o.ok) {
-        const data = safeJson(o.raw) || {};
-        const answer = data?.choices?.[0]?.message?.content || "";
-        return { answer, provider_used: "openai", model_used: "gpt-3.5-turbo" };
+      for (const model of groqModels) {
+        const o = await callGroqChat({ apiKey: GROQ_API_KEY, model, messages: compact });
+        lastGroq = { model, status: o.status, raw: o.raw };
+
+        if (o.ok) {
+          const data = safeJson(o.raw) || {};
+          const answer = data?.choices?.[0]?.message?.content || "";
+          return { answer, provider_used: "groq", model_used: model };
+        }
+
+        // If Groq fails for non-rate-limit reasons, stop early
+        if (!isRateLimitOrQuota(o.status, o.raw)) {
+          const e = new Error("Groq API error");
+          e.status = o.status || 500;
+          e.detail = o.raw;
+          throw e;
+        }
+
+        // else: rate-limited => try next Groq model
       }
 
-      const status = o.status || 500;
+      const status = (lastGroq && lastGroq.status) || 429;
       const payload = {
-        error: "Fallback provider error",
-        gemini_status: g.status,
-        openai_status: o.status,
-        detail: safeJson(o.raw) ? safeJson(o.raw) : o.raw
+        error: "All Groq fallback models are rate-limited or unavailable",
+        gemini: {
+          status: g.status,
+          detail: safeJson(g.raw) ? safeJson(g.raw) : g.raw
+        },
+        groq: {
+          tried_models: groqModels,
+          last: lastGroq
+            ? { model: lastGroq.model, status: lastGroq.status, detail: safeJson(lastGroq.raw) ? safeJson(lastGroq.raw) : lastGroq.raw }
+            : null
+        }
       };
 
       return { __error: true, __status: status, __payload: payload };
