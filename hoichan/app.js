@@ -9,8 +9,74 @@ const show = (el, yes) => el.classList.toggle("hidden", !yes);
 // Khi làm thật: Google callback sẽ gọi hide overlay và set username
 window.onGoogleCredential = () => {}; // placeholder để tránh lỗi nếu chưa cấu hình
 
-// Nếu bạn chưa làm Google Client ID, tạm comment overlay để test UI:
-// show($("loginOverlay"), false);
+const GOOGLE_CLIENT_ID = "809932517901-53dirqapfjqbroadjilk8oeqtj0qugfj.apps.googleusercontent.com";
+
+const $ = (id) => document.getElementById(id);
+const show = (el, yes) => el.classList.toggle("hidden", !yes);
+
+function hideLoginOverlay() {
+  const ov = $("loginOverlay");
+  if (!ov) return;
+  ov.classList.add("hidden");        // cách 1
+  ov.style.display = "none";         // cách 2 (ăn chắc)
+}
+
+function onLoginSuccess(payload) {
+  // payload.name, payload.email, payload.picture
+  const meEl = $("me");
+  const statusEl = $("status");
+  if (meEl) meEl.textContent = payload.name || "User";
+  if (statusEl) statusEl.textContent = "Đã đăng nhập";
+
+  hideLoginOverlay();
+  const sendBtn = $("send");
+  if (sendBtn) sendBtn.disabled = false;
+}
+
+// Render Google button full width theo đúng card
+function renderGoogleButtonFullWidth() {
+  const btnHost = $("gBtn");
+  const card = document.querySelector(".loginCard");
+  if (!btnHost || !card) return;
+
+  btnHost.innerHTML = ""; // clear để render lại khi resize
+  const width = Math.min(card.clientWidth, 420); // giới hạn đẹp
+
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: (resp) => {
+      // resp.credential là ID token (JWT)
+      // Frontend demo: decode lấy name để ẩn overlay
+      // (Sau này có backend thì gửi token về server verify)
+      const payload = JSON.parse(atob(resp.credential.split(".")[1]));
+      onLoginSuccess(payload);
+    },
+  });
+
+  google.accounts.id.renderButton(btnHost, {
+    theme: "outline",
+    size: "large",
+    text: "signin_with",
+    shape: "pill",
+    width, // ✅ full width theo card
+  });
+
+  // Không tự bật prompt nổi
+  // google.accounts.id.prompt();
+}
+
+// Đợi GIS load xong rồi render
+window.addEventListener("load", () => {
+  // GIS script async nên đôi khi cần đợi google xuất hiện
+  const t = setInterval(() => {
+    if (window.google?.accounts?.id) {
+      clearInterval(t);
+      renderGoogleButtonFullWidth();
+      window.addEventListener("resize", renderGoogleButtonFullWidth);
+    }
+  }, 100);
+});
+
 
 function escapeHtml(s) {
   return s.replace(/[&<>"']/g, (c) => ({
