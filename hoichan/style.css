@@ -11,7 +11,6 @@
   font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI",Roboto,Arial,sans-serif;
 }
 
-
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--text);overflow:hidden}
@@ -55,45 +54,54 @@ body{margin:0;background:var(--bg);color:var(--text);overflow:hidden}
   overflow:auto;
   padding:14px 12px 90px;
   -webkit-overflow-scrolling: touch;
+
+  /* ✅ FIX: làm column flex để item full width */
+  display:flex;
+  flex-direction:column;
 }
 
-/* message bubble */
-.msg{margin:10px 0; display:flex;justify-content:flex-start;}
-.msg.me{
-  justify-content: flex-end;
+/* message row */
+.msg{
+  margin:10px 0;
+  display:flex;
+  width:100%;                 /* ✅ FIX: có “đất” để căn trái/phải */
+  justify-content:flex-start;
 }
+.msg.me{
+  justify-content:flex-end;   /* ✅ tin của mình sang phải */
+}
+
+/* bubble */
 .bubble{
-  display:inline-block;        
-  max-width: 75%;             
-  width: fit-content;          
+  display:inline-block;
+  max-width:75%;
+  width:fit-content;
   background:#fff;
+  border:1px solid var(--border);
   border-radius:20px;
   padding:12px 14px;
   box-shadow:0 6px 16px rgba(0,0,0,.05);
-  word-wrap: break-word;
+  word-wrap:break-word;
 }
+
+/* bubble của mình - xanh Apple */
 .msg.me .bubble{
-  background:#007aff;          
+  background:#007aff;
   color:#fff;
   border:none;
 }
-.msg.me .name,
-.msg.me .time{
-  color:rgba(255,255,255,.85);
-}
-.msg.me .name{
-  display:none;
-}
-.msg.me .heart{
-  pointer-events:none;     
-  opacity:.9;             
-}
 
+/* meta */
 .meta{display:flex;gap:10px;align-items:baseline}
 .name{font-weight:650;font-size:14px}
 .time{color:var(--sub);font-size:12px}
 .text{margin-top:6px;line-height:1.4;white-space:pre-wrap;word-break:break-word}
 
+/* meta trên bubble của mình */
+.msg.me .time{color:rgba(255,255,255,.85)}
+.msg.me .name{display:none}
+
+/* image */
 .img{
   margin-top:10px;
   width:100%;
@@ -115,6 +123,12 @@ body{margin:0;background:var(--bg);color:var(--text);overflow:hidden}
 }
 .heart:active{transform:scale(.98)}
 
+/* ✅ yêu cầu: tin của mình KHÔNG thả tim được nhưng vẫn hiện số */
+.msg.me .heart{
+  pointer-events:none;
+  opacity:.9;
+}
+
 /* Composer bottom */
 .composer{
   position:sticky; bottom:0; z-index:20;
@@ -125,7 +139,6 @@ body{margin:0;background:var(--bg);color:var(--text);overflow:hidden}
   backdrop-filter: blur(14px);
   border-top:1px solid var(--border);
 }
-
 .iconbtn{
   width:42px;height:42px;
   border-radius:999px;
@@ -165,10 +178,11 @@ body{margin:0;background:var(--bg);color:var(--text);overflow:hidden}
 .loginCard{
   width:min(440px, 100%);
   background:var(--card);
+  border:1px solid var(--border);
   border-radius:var(--radius);
   box-shadow:var(--shadow);
   padding:18px;
-  text-align: center;
+  text-align:center;
 }
 .loginCard h1{margin:0 0 14px;font-size:20px}
 .hint{margin-top:12px;color:var(--sub);font-size:13px}
@@ -187,7 +201,3 @@ body{margin:0;background:var(--bg);color:var(--text);overflow:hidden}
   z-index:60;
   box-shadow:0 10px 30px rgba(0,0,0,.18);
 }
-
-
-
-
