@@ -68,7 +68,6 @@ body{margin:0;background:var(--bg);color:var(--text);overflow:hidden}
   width:fit-content;
   max-width:75%;
   background:#fff;
-  border:1px solid var(--border);
   border-radius:20px;
   padding:12px 14px;
   box-shadow:0 6px 16px rgba(0,0,0,.05);
