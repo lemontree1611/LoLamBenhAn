@@ -4,6 +4,35 @@
    Includes FIX for mobile right overflow
    ========================= */
 
+.admin-announcement{
+  position: sticky;
+  top: 0;
+  z-index: 40;
+
+  width: 100%;
+  text-align: center;
+
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+
+  color: #1d1d1f;
+  background: rgba(255,255,255,.78);
+
+  border-bottom: 1px solid rgba(0,0,0,.06);
+
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  backdrop-filter: blur(18px) saturate(180%);
+}
+
+/* Mobile */
+@media (max-width:768px){
+  .admin-announcement{
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+}
+
 :root{
   --bg:#f5f5f7;
   --text:#121216;
