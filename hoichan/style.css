@@ -54,26 +54,19 @@ body{margin:0;background:var(--bg);color:var(--text);overflow:hidden}
   overflow:auto;
   padding:14px 12px 90px;
   -webkit-overflow-scrolling: touch;
-  display:flex;
-  flex-direction:column;
 }
 
 /* message row */
 .msg{
   margin:10px 0;
   display:flex;
-  width:100%;                 /* ✅ FIX: có “đất” để căn trái/phải */
-  justify-content:flex-start;
-}
-.msg.me{
-  justify-content:flex-end;   /* ✅ tin của mình sang phải */
 }
 
 /* bubble */
 .bubble{
   display:inline-block;
-  max-width:75%;
   width:fit-content;
+  max-width:75%;
   background:#fff;
   border:1px solid var(--border);
   border-radius:20px;
@@ -121,7 +114,7 @@ body{margin:0;background:var(--bg);color:var(--text);overflow:hidden}
 }
 .heart:active{transform:scale(.98)}
 
-/* ✅ yêu cầu: tin của mình KHÔNG thả tim được nhưng vẫn hiện số */
+/* yêu cầu: tin của mình KHÔNG thả tim được nhưng vẫn hiện số */
 .msg.me .heart{
   pointer-events:none;
   opacity:.9;
@@ -200,26 +193,28 @@ body{margin:0;background:var(--bg);color:var(--text);overflow:hidden}
   box-shadow:0 10px 30px rgba(0,0,0,.18);
 }
 
-/* === FORCE FIX: không cho messages căn giữa === */
+/* =========================================================
+   FORCE FIX (đập chết mọi rule căn giữa gây lỗi)
+   ========================================================= */
 .messages{
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: stretch !important;  
-  text-align: left !important;
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:stretch !important;   /* ✅ quan trọng */
+  text-align:left !important;
 }
 
 .msg{
-  width: 100% !important;      
-  display: flex !important;
-  justify-content: flex-start !important;
-  align-self: stretch !important;
+  width:100% !important;            /* ✅ quan trọng */
+  display:flex !important;
+  justify-content:flex-start !important;
+  align-self:stretch !important;
 }
 
 .msg.me{
-  justify-content: flex-end !important;
+  justify-content:flex-end !important; /* ✅ đẩy sát phải */
 }
 
 .bubble{
-  width: fit-content !important;
-  max-width: 75% !important;
+  width:fit-content !important;
+  max-width:75% !important;
 }
