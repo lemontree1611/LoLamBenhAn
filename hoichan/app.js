@@ -117,11 +117,20 @@ function renderLocalMessage({ userName, text, imageUrl }) {
     </div>
   `;
 
+  const myName = $("me").textContent?.trim() || "";
+  const isMine = msg.userName === myName;
+  
   const heartBtn = wrap.querySelector(".heart");
-  heartBtn.onclick = () => {
-    msg.hearts += 1;
-    heartBtn.querySelector("span").textContent = msg.hearts;
-  };
+  
+  // ✅ chỉ cho thả tim tin người khác
+  if (!isMine) {
+    heartBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      msg.hearts += 1;
+      heartBtn.querySelector("span").textContent = msg.hearts;
+    });
+  }
 
   $("messages").appendChild(wrap);
   $("messages").scrollTop = $("messages").scrollHeight;
