@@ -19,7 +19,7 @@
   - Tính **Z-score**
   - Tự động đưa ra **kết luận** dựa trên chỉ số đã nhập
 
-- 🤖 **Tích hợp AI Gemini 3.5 Flash**
+- 🤖 **Tích hợp AI**
   - Hỗ trợ gợi ý nội dung bệnh án
   - Giúp hoàn thiện câu chữ, tóm tắt và kiểm tra thông tin
 
@@ -33,7 +33,7 @@
 
 - Frontend: Web (HTML / CSS / JavaScript)
 - Realtime collaboration: WebSocket
-- AI: **Gemini 3.5 Flash**
+- AI: **Gemini** / **Groq** model
 - Export file: DOCX template
 
 ---
