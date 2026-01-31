@@ -579,3 +579,100 @@ footer p{color:var(--muted2);font-size:.92rem}
 .heart-admin-text,.heart-admin-view{color:#e11d48;font-weight:700;letter-spacing:.2px}
 .heart-admin-btn:not(.active) .heart-admin-text{opacity:.55}
 .heart-admin-btn.active .heart-admin-text{opacity:1}
+
+
+/* =========================
+   Admin Announcement Popup (Apple simple)
+   ========================= */
+.announce-backdrop{
+  position: fixed;
+  inset: 0;
+  z-index: 80; /* above admin widget/modal */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(0,0,0,.32);
+}
+
+.announce-backdrop.is-hidden{display:none}
+
+.announce-modal{
+  width: min(520px, 100%);
+  border-radius: 22px;
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border-strong);
+  box-shadow: 0 30px 90px rgba(0,0,0,.24);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  backdrop-filter: blur(28px) saturate(190%);
+  overflow: hidden;
+}
+
+.announce-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 10px;
+}
+
+.announce-title{
+  font-size: 1.05rem;
+  font-weight: 760;
+  letter-spacing: -.02em;
+}
+
+.announce-sub{
+  font-size: .92rem;
+  color: var(--muted2);
+  margin-top: 2px;
+}
+
+.announce-close{
+  border: 1px solid var(--glass-border);
+  background: rgba(255,255,255,.35);
+  border-radius: 12px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.announce-body{padding: 0 16px 16px}
+.announce-message{
+  color: var(--text);
+  line-height: 1.6;
+  font-size: .98rem;
+  margin-top: 6px;
+}
+
+.announce-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.announce-btn{
+  border: 1px solid rgba(255,255,255,.35);
+  background: linear-gradient(180deg, rgba(10,132,255,.98), rgba(10,132,255,.86));
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 14px;
+  font-size: 1rem;
+  font-weight: 720;
+  cursor: pointer;
+  box-shadow: 0 16px 34px rgba(10,132,255,.26), inset 0 1px 0 rgba(255,255,255,.30);
+  transition: transform var(--dur) var(--ease), filter var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.announce-btn:hover{
+  filter:brightness(1.05) saturate(1.02);
+  transform:translateY(-1px);
+  box-shadow:0 22px 50px rgba(10,132,255,.30), inset 0 1px 0 rgba(255,255,255,.32);
+}
+.announce-btn:active{transform:translateY(0)}
+
+@media (max-width: 480px){
+  .announce-backdrop{padding: 14px}
+  .announce-modal{border-radius: 20px}
+  .announce-title{font-size: 1rem}
+  .announce-message{font-size: .95rem}
+}
