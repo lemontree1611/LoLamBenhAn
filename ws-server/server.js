@@ -228,7 +228,7 @@ app.post("/chat", async (req, res) => {
     }));
 
     const url =
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent" +
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent" +
       `?key=${GEMINI_API_KEY}`;
 
     const r = await fetch(url, {
