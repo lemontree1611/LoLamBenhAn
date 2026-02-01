@@ -373,6 +373,111 @@ h1{
   .comment-item{animation:none!important}
 }
 
+/* =========================
+   Tab Toggle (Apple style)
+   ========================= */
+
+.tab-toggle-wrap{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:14px;
+  margin-bottom:32px;
+}
+
+.tab-label{
+  font-size:.96rem;
+  font-weight:650;
+  color:var(--muted);
+  letter-spacing:-.01em;
+  transition:color var(--dur) var(--ease2);
+  user-select:none;
+}
+.tab-label.is-active{
+  color:var(--text);
+  font-weight:720;
+}
+
+/* track */
+.tab-toggle{
+  position:relative;
+  width:52px;
+  height:30px;
+  border:none;
+  padding:0;
+  cursor:pointer;
+  background:transparent;
+  -webkit-tap-highlight-color:transparent;
+  outline:none;
+}
+.tab-toggle__track{
+  position:absolute;
+  inset:0;
+  border-radius:999px;
+  background:rgba(0,0,0,.18);
+  border:1px solid rgba(0,0,0,.06);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.12);
+  transition:background var(--dur) var(--ease2),
+             box-shadow var(--dur) var(--ease2);
+}
+.tab-toggle.is-on .tab-toggle__track{
+  background:var(--primary);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.18),
+             0 0 0 3.5px rgba(10,132,255,.22);
+}
+
+/* thumb */
+.tab-toggle__thumb{
+  position:absolute;
+  top:2px;
+  left:2px;
+  width:24px;
+  height:24px;
+  border-radius:999px;
+  background:#fff;
+  box-shadow:0 2px 5px rgba(0,0,0,.22),
+             inset 0 1px 0 rgba(255,255,255,.9);
+  transition:transform 240ms cubic-bezier(.34,1.56,.64,1),
+             box-shadow var(--dur) var(--ease2);
+  will-change:transform;
+}
+.tab-toggle.is-on .tab-toggle__thumb{
+  transform:translateX(22px);
+  box-shadow:0 3px 8px rgba(0,0,0,.26),
+             inset 0 1px 0 rgba(255,255,255,.9);
+}
+
+/* press feedback */
+.tab-toggle:active .tab-toggle__thumb{
+  transform:scale(.92);
+}
+.tab-toggle.is-on:active .tab-toggle__thumb{
+  transform:translateX(22px) scale(.92);
+}
+
+/* ===== Tab grid fade transitions ===== */
+.card-grid.tab-exit{
+  animation:tabFadeOut 220ms var(--ease2) forwards;
+}
+.card-grid.tab-enter{
+  animation:tabFadeIn 320ms var(--ease2) forwards;
+}
+
+@keyframes tabFadeOut{
+  0%  { opacity:1; transform:translateY(0); }
+  100%{ opacity:0; transform:translateY(-8px); }
+}
+@keyframes tabFadeIn{
+  0%  { opacity:0; transform:translateY(10px); }
+  100%{ opacity:1; transform:translateY(0); }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .tab-toggle__thumb{ transition:transform 0ms, box-shadow 0ms !important; }
+  .card-grid.tab-exit,
+  .card-grid.tab-enter{ animation:none !important; opacity:1 !important; transform:none !important; }
+}
+
 footer{
   position:relative;z-index:1;
   padding:22px 20px;text-align:center;
