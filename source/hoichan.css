@@ -1,7 +1,7 @@
 :root{
   --bg: #f5f5f7;
-  --panel: rgba(255,255,255,0.75);
-  --panel2: rgba(255,255,255,0.92);
+  --panel: rgba(255,255,255,0.45);
+  --panel2: rgba(255,255,255,0.62);
   --text: #111827;
   --muted: rgba(17,24,39,0.58);
   --border: rgba(17,24,39,0.10);
@@ -37,10 +37,9 @@ body{
 .card{
   width: min(520px, 100%);
   background: linear-gradient(180deg, var(--panel2), var(--panel));
-  border: 1px solid var(--border);
   border-radius: 22px;
   padding: 22px;
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(8px);
   box-shadow: var(--shadow);
 }
 .brand{ display:flex; gap:12px; align-items:center; margin-bottom: 16px; }
