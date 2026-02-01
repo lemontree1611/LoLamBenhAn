@@ -10,11 +10,8 @@ const $ = (id) => document.getElementById(id);
 const loginScreen = $("loginScreen");
 const chatScreen = $("chatScreen");
 const meLabel = $("meLabel");
-const wsLabel = $("wsLabel");
 const messagesEl = $("messages");
 const inputEl = $("msgInput");
-
-wsLabel.textContent = WS_URL;
 
 let ws = null;
 let token = localStorage.getItem("hoichan_google_token") || "";
