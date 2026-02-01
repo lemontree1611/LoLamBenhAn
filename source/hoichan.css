@@ -1,0 +1,159 @@
+:root{
+  --bg: #0b0b0f;
+  --card: rgba(255,255,255,0.08);
+  --card2: rgba(255,255,255,0.10);
+  --text: rgba(255,255,255,0.92);
+  --muted: rgba(255,255,255,0.65);
+  --border: rgba(255,255,255,0.12);
+  --blue: #0A84FF;      /* Apple-ish blue */
+  --bubbleOther: rgba(255,255,255,0.12);
+}
+
+*{ box-sizing: border-box; }
+html, body{ height:100%; margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "SF Pro Display", "SF Pro Text", Segoe UI, Roboto, Arial, sans-serif; }
+body{
+  background:
+    radial-gradient(1200px 800px at 30% 10%, rgba(10,132,255,0.25), transparent 60%),
+    radial-gradient(900px 700px at 90% 30%, rgba(255,255,255,0.10), transparent 55%),
+    var(--bg);
+  color: var(--text);
+}
+
+.hidden{ display:none !important; }
+.app{ height:100vh; width:100vw; }
+
+.screen{
+  height:100vh;
+  width:100vw;
+  display:flex;
+}
+
+/* Login */
+.loginScreen{
+  align-items:center;
+  justify-content:center;
+  padding: 18px;
+}
+.card{
+  width: min(520px, 100%);
+  background: linear-gradient(180deg, var(--card2), var(--card));
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 22px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+}
+.brand{ display:flex; gap:12px; align-items:center; margin-bottom: 18px; }
+.dot{
+  width: 14px; height: 14px; border-radius: 999px;
+  background: var(--blue);
+  box-shadow: 0 0 0 6px rgba(10,132,255,0.15);
+}
+.title{ font-size: 22px; font-weight: 650; letter-spacing: 0.2px; }
+.subtitle{ margin-top: 4px; color: var(--muted); font-size: 14px; }
+.googleBtn{ margin-top: 14px; display:flex; justify-content:center; }
+.hint{ margin-top: 14px; color: var(--muted); font-size: 13px; text-align: center; }
+.tiny{ margin-top: 12px; color: rgba(255,255,255,0.55); font-size: 12px; text-align:center; }
+.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+/* Chat */
+.chatScreen{ flex-direction: column; }
+
+.topbar{
+  height: 56px;
+  padding: 10px 12px;
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  background: rgba(20,20,26,0.55);
+  backdrop-filter: blur(14px);
+}
+.topLeft{ display:flex; align-items:center; gap: 10px; }
+.pill{
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.06);
+  font-weight: 600;
+}
+.me{ color: var(--muted); font-size: 13px; }
+
+.ghostBtn{
+  color: var(--text);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.ghostBtn:active{ transform: translateY(1px); }
+
+.messages{
+  flex: 1;
+  overflow: auto;
+  padding: 14px 12px 10px;
+}
+
+.row{
+  display:flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0;
+  max-width: 820px;
+}
+.rowOther{ align-items: flex-start; }
+.rowMine{ align-items: flex-end; margin-left: auto; }
+
+.name{
+  color: var(--muted);
+  font-size: 12px;
+  padding-left: 6px;
+}
+
+.bubble{
+  border-radius: 18px;
+  padding: 10px 12px;
+  line-height: 1.35;
+  border: 1px solid rgba(255,255,255,0.10);
+  word-break: break-word;
+  max-width: min(78vw, 640px);
+}
+.bubble.other{ background: var(--bubbleOther); }
+.bubble.mine{
+  background: rgba(10,132,255,0.25);
+  border-color: rgba(10,132,255,0.35);
+}
+
+.composer{
+  padding: 10px;
+  border-top: 1px solid var(--border);
+  background: rgba(20,20,26,0.55);
+  backdrop-filter: blur(14px);
+  display:flex;
+  gap: 10px;
+}
+.input{
+  flex: 1;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  padding: 12px 12px;
+  outline: none;
+}
+.sendBtn{
+  border-radius: 14px;
+  border: 1px solid rgba(10,132,255,0.45);
+  background: rgba(10,132,255,0.28);
+  color: var(--text);
+  padding: 12px 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.sendBtn:active{ transform: translateY(1px); }
+
+@media (max-width: 480px){
+  .topbar{ height: 52px; }
+  .bubble{ max-width: 86vw; }
+}
