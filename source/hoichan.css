@@ -1,184 +1,384 @@
-:root{
-  --bg: #f5f5f7;
-  --panel: rgba(255,255,255,0.45);
-  --panel2: rgba(255,255,255,0.62);
-  --text: #111827;
-  --muted: rgba(17,24,39,0.58);
-  --border: rgba(17,24,39,0.10);
-  --shadow: 0 18px 50px rgba(0,0,0,0.10);
+/* ============================================================
+   Hội chẩn — Apple-style Chat UI
+   ============================================================ */
 
-  --blue: #0A84FF; /* Apple blue */
-  --bubbleOther: rgba(17,24,39,0.06);
-  --bubbleMine: rgba(10,132,255,0.18);
+/* ── Reset & Base ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-*{ box-sizing: border-box; }
-html, body{
-  height:100%;
-  margin:0;
-  font-family: ui-sans-serif, system-ui, -apple-system, "SF Pro Display", "SF Pro Text",
-    Segoe UI, Roboto, Arial, sans-serif;
+:root {
+  --bg:            #f2f2f7;
+  --surface:       #ffffff;
+  --surface2:      #f9f9fb;
+  --border:        #e2e2e7;
+  --text:          #1d1d1f;
+  --text-secondary:#6e6e73;
+  --accent:        #007aff;   /* Apple blue */
+  --accent-dark:   #0062cc;
+  --bubble-mine:   #007aff;
+  --bubble-other:  #ffffff;
+  --bubble-mine-t: #ffffff;
+  --bubble-other-t:#1d1d1f;
+  --shadow:        0 2px 12px rgba(0,0,0,.08);
+  --radius:        18px;
+  --radius-sm:     12px;
+  --font:          -apple-system, BlinkMacSystemFont, "SF Pro Display",
+                   "Segoe UI", system-ui, sans-serif;
+  --mono:          "SF Mono", "Fira Code", monospace;
 }
-body{
-  background:
-    radial-gradient(900px 650px at 12% 0%, rgba(10,132,255,0.18), transparent 55%),
-    radial-gradient(850px 600px at 90% 18%, rgba(0,0,0,0.05), transparent 55%),
-    var(--bg);
+
+html, body {
+  height: 100%;
+  font-family: var(--font);
+  background: var(--bg);
   color: var(--text);
-  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
 }
 
-.hidden{ display:none !important; }
-.app{ height:100vh; width:100vw; }
-.screen{ height:100vh; width:100vw; display:flex; }
+/* ── Hidden util ── */
+.hidden { display: none !important; }
 
-/* Login */
-.loginScreen{ align-items:center; justify-content:center; padding: 18px; }
-.card{
-  width: min(520px, 100%);
-  background: linear-gradient(180deg, var(--panel2), var(--panel));
-  border-radius: 22px;
-  padding: 22px;
-  backdrop-filter: blur(8px);
-  box-shadow: var(--shadow);
-}
-.brand{ display:flex; gap:12px; align-items:center; margin-bottom: 16px; }
-.dot{
-  width: 14px; height: 14px; border-radius: 999px;
-  background: var(--blue);
-  box-shadow: 0 0 0 6px rgba(10,132,255,0.16);
-}
-.title{ font-size: 22px; font-weight: 700; letter-spacing: 0.2px; }
-.subtitle{ margin-top: 4px; color: var(--muted); font-size: 14px; }
-.googleBtn{ margin-top: 14px; display:flex; justify-content:center; }
-.hint{ margin-top: 14px; color: var(--muted); font-size: 13px; text-align: center; }
-.tiny{ margin-top: 10px; color: rgba(17,24,39,0.55); font-size: 12px; text-align:center; }
-.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-
-/* Chat */
-.chatScreen{ flex-direction: column; }
-
-/* Topbar */
-.topbar{
-  height: 56px;
-  padding: 10px 12px;
-  display:flex;
-  align-items:center;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--border);
-  background: rgba(255,255,255,0.70);
-  backdrop-filter: blur(14px);
-}
-.topLeft{ display:flex; align-items:center; gap: 10px; min-width: 0; }
-.pill{
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: rgba(255,255,255,0.75);
-  font-weight: 700;
-}
-.me{
-  color: var(--muted);
-  font-size: 13px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.ghostBtn{
-  color: var(--text);
-  background: rgba(255,255,255,0.75);
-  border: 1px solid var(--border);
-  padding: 8px 10px;
-  border-radius: 12px;
-  cursor: pointer;
-}
-.ghostBtn:active{ transform: translateY(1px); }
-
-/* Messages */
-.messages{
-  flex: 1;
-  overflow: auto;
-  padding: 14px 12px 10px;
-}
-
-/* Bubble row */
-.row{
-  display:flex;
+/* ============================================================
+   LAYOUT SHELL
+   ============================================================ */
+.app {
+  height: 100%;
+  display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin: 10px 0;
-  max-width: 920px;
 }
-.rowOther{ align-items: flex-start; }
-.rowMine{ align-items: flex-end; margin-left: auto; }
 
-/* Meta line: name + time */
-.meta{
-  display:flex;
-  gap: 8px;
-  align-items: baseline;
-  padding-left: 6px;
-  color: var(--muted);
+/* ============================================================
+   LOGIN SCREEN
+   ============================================================ */
+.screen.loginScreen {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  /* subtle gradient backdrop */
+  background:
+    radial-gradient(ellipse 80% 60% at 30% 20%, rgba(0,122,255,.07) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 75% 80%, rgba(0,122,255,.05) 0%, transparent 70%),
+    var(--bg);
+}
+
+.card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border-radius: 28px;
+  box-shadow: var(--shadow), 0 1px 0 var(--border) inset;
+  padding: 48px 36px 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+/* brand row */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.dot {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #34aaff 0%, #007aff 50%, #0062cc 100%);
+  box-shadow: 0 4px 14px rgba(0,122,255,.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* SVG chat icon inside .dot */
+.dot svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -.3px;
+  color: var(--text);
+}
+
+.subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* Google button wrapper — center the rendered button */
+.googleBtn {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.hint {
   font-size: 12px;
-  opacity:.7;
-}
-.meta .time{
-  color: rgba(17,24,39,0.45);
-  opacity:.7;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.5;
 }
 
-/* Bubble */
-.bubble{
-  border-radius: 18px;
-  padding: 10px 12px;
-  line-height: 1.35;
-  border: 1px solid rgba(17,24,39,0.10);
-  word-break: break-word;
-  max-width: min(78vw, 640px);
-  box-shadow: 0 10px 28px rgba(0,0,0,0.07);
+/* WS debug label */
+.tiny {
+  font-size: 10px;
+  color: #aaa;
+  text-align: center;
+  word-break: break-all;
 }
-.bubble.other{ background: var(--bubbleOther); }
-.bubble.mine{
-  background: var(--bubbleMine);
-  border-color: rgba(10,132,255,0.25);
+.mono {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: #999;
 }
 
-/* Composer */
-.composer{
-  padding: 10px;
-  border-top: 1px solid var(--border);
-  background: rgba(255,255,255,0.75);
-  backdrop-filter: blur(14px);
-  display:flex;
+/* ============================================================
+   CHAT SCREEN
+   ============================================================ */
+.screen.chatScreen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;            /* let flex children scroll */
+  background: var(--bg);
+}
+
+/* ── Top Bar ── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: rgba(242,242,247,.85);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter:         blur(20px);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  /* safe-area for notch */
+  padding-top: calc(12px + env(safe-area-inset-top, 0px));
+}
+
+.topLeft {
+  display: flex;
+  align-items: center;
   gap: 10px;
 }
-.input{
-  flex: 1;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: rgba(255,255,255,0.85);
-  color: var(--text);
-  padding: 12px 12px;
-  outline: none;
-}
-.input:focus{
-  border-color: rgba(10,132,255,0.35);
-  box-shadow: 0 0 0 4px rgba(10,132,255,0.12);
-}
-.sendBtn{
-  border-radius: 14px;
-  border: 1px solid rgba(10,132,255,0.35);
-  background: rgba(10,132,255,0.18);
-  color: var(--text);
-  padding: 12px 14px;
-  font-weight: 750;
-  cursor: pointer;
-}
-.sendBtn:active{ transform: translateY(1px); }
-.sendBtn:disabled{ opacity: .5; cursor: not-allowed; }
 
-@media (max-width: 480px){
-  .topbar{ height: 52px; }
-  .bubble{ max-width: 86vw; }
+.pill {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(0,122,255,.08);
+  padding: 4px 12px;
+  border-radius: 20px;
+  letter-spacing: -.2px;
+}
+
+.me {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.ghostBtn {
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: background .15s, color .15s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.ghostBtn:hover {
+  background: rgba(0,0,0,.05);
+  color: var(--text);
+}
+.ghostBtn svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ── Messages Area ── */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* hide scrollbar on desktop for cleaner look */
+.messages::-webkit-scrollbar          { width: 6px; }
+.messages::-webkit-scrollbar-track    { background: transparent; }
+.messages::-webkit-scrollbar-thumb    { background: var(--border); border-radius: 3px; }
+
+/* ── Message Row ── */
+.row {
+  display: flex;
+  flex-direction: column;
+  max-width: 75%;
+  animation: msgIn .22s cubic-bezier(.34,1.56,.64,1) both;
+}
+.rowMine  { align-self: flex-end; align-items: flex-end; }
+.rowOther { align-self: flex-start; align-items: flex-start; }
+
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(6px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);   }
+}
+
+/* sender name */
+.name {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 3px;
+  padding-left: 4px;
+  letter-spacing: .1px;
+}
+
+/* ── Bubbles ── */
+.bubble {
+  padding: 9px 14px;
+  border-radius: 18px;
+  font-size: 15px;
+  line-height: 1.45;
+  word-wrap: break-word;
+  word-break: break-word;
+  max-width: 100%;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+}
+
+/* mine — Apple blue */
+.bubble.mine {
+  background: var(--bubble-mine);
+  color: var(--bubble-mine-t);
+  border-bottom-right-radius: 4px;
+}
+
+/* other — white card */
+.bubble.other {
+  background: var(--bubble-other);
+  color: var(--bubble-other-t);
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+}
+
+/* ── Composer / Input Footer ── */
+.composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  background: rgba(242,242,247,.85);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter:         blur(20px);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  font-family: var(--font);
+  font-size: 15px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 10px 18px;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+  /* prevent zoom on iOS */
+  font-size: max(16px, 15px);
+}
+.input::placeholder {
+  color: #aaa;
+}
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0,122,255,.15);
+}
+
+.sendBtn {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #34aaff, #007aff);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,122,255,.3);
+  transition: transform .15s, box-shadow .15s;
+}
+.sendBtn:active {
+  transform: scale(.9);
+  box-shadow: 0 1px 4px rgba(0,122,255,.25);
+}
+.sendBtn svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* nudge arrow visually to center */
+  transform: translateX(1px);
+}
+
+/* ============================================================
+   RESPONSIVE — mobile
+   ============================================================ */
+@media (max-width: 480px) {
+  .card {
+    padding: 40px 24px 28px;
+    border-radius: 24px;
+  }
+  .messages {
+    padding: 12px 12px;
+  }
+  .row { max-width: 82%; }
+  .topbar { padding: 10px 14px; padding-top: calc(10px + env(safe-area-inset-top,0px)); }
+  .composer { padding: 8px 10px; padding-bottom: calc(8px + env(safe-area-inset-bottom,0px)); }
+}
+
+/* Full-screen login on very small screens */
+@media (max-width: 360px) {
+  .screen.loginScreen { padding: 16px; }
+  .card { padding: 36px 18px 24px; }
 }
