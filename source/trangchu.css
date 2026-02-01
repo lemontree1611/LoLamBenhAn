@@ -428,6 +428,7 @@ h1{
 .tab-toggle-btn.active{
   color:#000000;
   font-weight:600;
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.10);
 }
 
 /* ===== Tab grid fade transitions ===== */
