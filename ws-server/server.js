@@ -1,5 +1,5 @@
 // ws-server/server.js
-// WebSocket + HTTP API (Gemini) + Comments API (Postgres)
+// WebSocket + HTTP API (Gemini) + Comments API (Postgres) + HOI CHAN CHAT
 // Chạy tốt trên Render
 
 const http = require("http");
@@ -8,15 +8,21 @@ const express = require("express");
 const cors = require("cors");
 const crypto = require("crypto");
 const { Pool } = require("pg");
+const { OAuth2Client } = require("google-auth-library");
 
 const PORT = process.env.PORT || 10000;
+
+// ====== GOOGLE (Hoichan) ======
+const GOOGLE_CLIENT_ID =
+  process.env.GOOGLE_CLIENT_ID ||
+  "809932517901-53dirqapfjqbroadjilk8oeqtj0qugfj.apps.googleusercontent.com";
+
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // ================== EXPRESS (HTTP API) ==================
 const app = express();
 
 // ====== CORS ======
-// Nếu muốn chặt hơn: set CORS_ORIGINS="https://xxx.github.io,https://domain.com"
-// Mặc định cho phép Vercel production domain của bạn (để tránh lỗi 500 khi deploy Vercel).
 const defaultCorsOrigins = ["https://lolambenhan.vercel.app"];
 
 const corsOrigins = Array.from(
@@ -24,7 +30,7 @@ const corsOrigins = Array.from(
     defaultCorsOrigins.concat(
       (process.env.CORS_ORIGINS || "")
         .split(",")
-        .map(s => s.trim())
+        .map((s) => s.trim())
         .filter(Boolean)
     )
   )
@@ -33,9 +39,8 @@ const corsOrigins = Array.from(
 app.use(
   cors({
     origin: function (origin, cb) {
-      // allow curl/no-origin
       if (!origin) return cb(null, true);
-      if (corsOrigins.length === 0) return cb(null, true); // mở nếu chưa cấu hình
+      if (corsOrigins.length === 0) return cb(null, true);
       return corsOrigins.includes(origin)
         ? cb(null, true)
         : cb(new Error("Not allowed by CORS"));
@@ -47,14 +52,14 @@ app.use(
 
 app.use(express.json({ limit: "1mb" }));
 
-// Trả về 403 JSON thay vì 500 HTML khi bị chặn CORS (giúp debug dễ hơn)
 app.use((err, req, res, next) => {
   if (err && String(err.message || "").includes("Not allowed by CORS")) {
-    return res.status(403).json({ error: "CORS blocked", origin: req.headers.origin || null });
+    return res
+      .status(403)
+      .json({ error: "CORS blocked", origin: req.headers.origin || null });
   }
   return next(err);
 });
-
 
 app.get("/", (req, res) => {
   res.send("WS + Gemini API server is running.");
@@ -62,12 +67,19 @@ app.get("/", (req, res) => {
 
 app.get("/healthz", (req, res) => res.send("ok"));
 
-// ================== POSTGRES (COMMENTS) ==================
+// ================== POSTGRES (COMMENTS + HOICHAN) ==================
 const DATABASE_URL = process.env.DATABASE_URL || "";
 let pool = null;
 
 if (DATABASE_URL) {
-  pool = new Pool({ connectionString: DATABASE_URL });
+  // Render external postgres thường yêu cầu SSL
+  const needsSSL =
+    process.env.NODE_ENV === "production" || DATABASE_URL.includes("render.com");
+
+  pool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: needsSSL ? { rejectUnauthorized: false } : false
+  });
 } else {
   console.warn("Missing DATABASE_URL - comments APIs will not work until set.");
 }
@@ -78,7 +90,10 @@ const ADMIN_TOKEN_SECRET = process.env.ADMIN_TOKEN_SECRET || "";
 
 function makeToken() {
   const raw = crypto.randomBytes(24).toString("hex");
-  const sig = crypto.createHmac("sha256", ADMIN_TOKEN_SECRET).update(raw).digest("hex");
+  const sig = crypto
+    .createHmac("sha256", ADMIN_TOKEN_SECRET)
+    .update(raw)
+    .digest("hex");
   return `${raw}.${sig}`;
 }
 
@@ -87,7 +102,10 @@ function verifyToken(token) {
   const parts = token.split(".");
   if (parts.length !== 2) return false;
   const [raw, sig] = parts;
-  const expected = crypto.createHmac("sha256", ADMIN_TOKEN_SECRET).update(raw).digest("hex");
+  const expected = crypto
+    .createHmac("sha256", ADMIN_TOKEN_SECRET)
+    .update(raw)
+    .digest("hex");
   try {
     return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
   } catch {
@@ -108,7 +126,6 @@ app.get("/comments", async (req, res) => {
   if (!pool) return res.status(500).json({ error: "DB not configured" });
 
   try {
-    // ✅ FIX timezone hiển thị: ép về Asia/Ho_Chi_Minh (+07)
     const { rows } = await pool.query(
       `select id, username, text, heart,
               to_char(created_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'DD/MM/YYYY HH24:MI:SS') as date
@@ -133,7 +150,6 @@ app.post("/comments", async (req, res) => {
     if (!username) return res.status(400).json({ error: "Vui lòng nhập nickname" });
     if (!text) return res.status(400).json({ error: "Vui lòng nhập nội dung góp ý" });
 
-    // ✅ FIX timezone hiển thị: ép về Asia/Ho_Chi_Minh (+07) cho returning date
     const { rows } = await pool.query(
       `insert into comments (username, text)
        values ($1, $2)
@@ -149,7 +165,6 @@ app.post("/comments", async (req, res) => {
   }
 });
 
-// Admin login: trả token
 app.post("/admin/login", (req, res) => {
   const password = String(req.body?.password || "");
 
@@ -163,7 +178,6 @@ app.post("/admin/login", (req, res) => {
   res.json({ ok: true, token });
 });
 
-// Toggle heart (admin only)
 app.post("/comments/:id/toggle-heart", requireAdmin, async (req, res) => {
   if (!pool) return res.status(500).json({ error: "DB not configured" });
 
@@ -187,8 +201,6 @@ app.post("/comments/:id/toggle-heart", requireAdmin, async (req, res) => {
   }
 });
 
-
-// Delete comment (admin only)
 app.delete("/comments/:id", requireAdmin, async (req, res) => {
   if (!pool) return res.status(500).json({ error: "DB not configured" });
 
@@ -209,7 +221,6 @@ app.delete("/comments/:id", requireAdmin, async (req, res) => {
   }
 });
 
-// Fallback endpoint (trường hợp frontend gọi POST /comments/:id/delete)
 app.post("/comments/:id/delete", requireAdmin, async (req, res) => {
   if (!pool) return res.status(500).json({ error: "DB not configured" });
 
@@ -231,9 +242,8 @@ app.post("/comments/:id/delete", requireAdmin, async (req, res) => {
 });
 
 // ================== CHAT PROTECTION + FALLBACK HELPERS ==================
-
-// --- Simple in-memory rate limit (per IP, per minute) ---
-const chatRate = new Map(); // ip -> { windowStart, count }
+// (Giữ nguyên y như file backup của bạn)
+const chatRate = new Map();
 function rateLimitChat(ip) {
   const RPM = Number(process.env.CHAT_MAX_RPM || 20);
   const now = Date.now();
@@ -256,9 +266,8 @@ function rateLimitChat(ip) {
   return { ok: true };
 }
 
-// --- Queue + concurrency (per IP) ---
-const ipActive = new Map(); // ip -> number active
-const chatQueue = [];       // { ip, fn, resolve, reject, enqueuedAt }
+const ipActive = new Map();
+const chatQueue = [];
 
 function runNextFromQueue() {
   if (chatQueue.length === 0) return;
@@ -303,21 +312,24 @@ function withChatQueue(ip, fn) {
   });
 }
 
-// --- Circuit breaker / cooldown on 429 ---
-const cooldownUntil = new Map(); // key -> timestamp(ms)
+const cooldownUntil = new Map();
 function inCooldown(key) {
   return Date.now() < (cooldownUntil.get(key) || 0);
 }
 function setCooldown(key) {
   const minMs = Number(process.env.COOLDOWN_MIN_MS || 30000);
   const maxMs = Number(process.env.COOLDOWN_MAX_MS || 60000);
-  const dur = minMs + Math.floor(Math.random() * Math.max(1, (maxMs - minMs)));
+  const dur = minMs + Math.floor(Math.random() * Math.max(1, maxMs - minMs));
   cooldownUntil.set(key, Date.now() + dur);
   return dur;
 }
 
 function safeJson(str) {
-  try { return JSON.parse(str); } catch { return null; }
+  try {
+    return JSON.parse(str);
+  } catch {
+    return null;
+  }
 }
 
 function isRateLimitOrQuota(status, rawText) {
@@ -334,8 +346,6 @@ function isRateLimitOrQuota(status, rawText) {
   return false;
 }
 
-// --- Reduce history / "summarize" without extra API calls ---
-// Snippet length is fixed at 180 chars (no env toggle).
 function condenseMessages(messages) {
   const keepLast = Number(process.env.CHAT_KEEP_LAST || 10);
   const snippetLen = 180;
@@ -355,21 +365,19 @@ function condenseMessages(messages) {
   const summaryMsg = {
     role: "system",
     content:
-      "TÓM TẮT NGỮ CẢNH TRƯỚC ĐÓ (rút gọn tự động):\n" +
-      summaryLines.join("\n")
+      "TÓM TẮT NGỮ CẢNH TRƯỚC ĐÓ (rút gọn tự động):\n" + summaryLines.join("\n")
   };
 
   return [summaryMsg, ...tail];
 }
 
-// --- Provider calls ---
 async function callGemini({ apiKey, messages }) {
   const key = "gemini:gemini-2.5-flash";
   if (inCooldown(key)) {
     return { ok: false, status: 429, raw: "Gemini in cooldown" };
   }
 
-  const contents = messages.map(m => ({
+  const contents = messages.map((m) => ({
     role: m.role === "assistant" ? "model" : "user",
     parts: [{ text: m.content }]
   }));
@@ -393,32 +401,21 @@ async function callGemini({ apiKey, messages }) {
   return { ok: r.ok, status: r.status, raw };
 }
 
-
 function getGroqModels() {
-  // Prefer GROQ_MODELS (comma-separated). Fallback to GROQ_MODEL.
-  // Also supports people mistakenly putting a comma-separated list into GROQ_MODEL.
   const rawList = String(process.env.GROQ_MODELS || "").trim();
   const rawSingle = String(process.env.GROQ_MODEL || "").trim();
-
   const pick = rawList || rawSingle;
 
   if (pick) {
     return pick
       .split(",")
-      .map(s => s.trim())
+      .map((s) => s.trim())
       .filter(Boolean);
   }
-
-  // Safe defaults
   return ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
 }
 
-
-
-
 async function callGroqChat({ apiKey, model, messages }) {
-  // Groq provides an OpenAI-compatible Chat Completions API:
-  // POST https://api.groq.com/openai/v1/chat/completions
   const key = `groq:${model}`;
 
   if (inCooldown(key)) {
@@ -427,7 +424,7 @@ async function callGroqChat({ apiKey, model, messages }) {
 
   const payload = {
     model,
-    messages: messages.map(m => ({
+    messages: messages.map((m) => ({
       role: m.role === "model" ? "assistant" : m.role,
       content: String(m.content ?? "")
     })),
@@ -452,18 +449,15 @@ async function callGroqChat({ apiKey, model, messages }) {
   return { ok: r.ok, status: r.status, raw };
 }
 
-
-
-
-// ====== CHAT API (Gemini -> fallback Groq) ======
 app.post("/chat", async (req, res) => {
   try {
     const ip =
-      (req.headers["x-forwarded-for"] ? String(req.headers["x-forwarded-for"]).split(",")[0].trim() : "") ||
+      (req.headers["x-forwarded-for"]
+        ? String(req.headers["x-forwarded-for"]).split(",")[0].trim()
+        : "") ||
       req.socket?.remoteAddress ||
       "unknown";
 
-    // Rate limit per IP (requests per minute)
     const rl = rateLimitChat(ip);
     if (!rl.ok) {
       return res.status(429).json({
@@ -472,7 +466,6 @@ app.post("/chat", async (req, res) => {
       });
     }
 
-    // Queue + per-IP concurrency cap
     const result = await withChatQueue(ip, async () => {
       const { messages } = req.body || {};
 
@@ -489,10 +482,8 @@ app.post("/chat", async (req, res) => {
         throw e;
       }
 
-      // Reduce history / create a lightweight summary message
       const compact = condenseMessages(messages);
 
-      // 1) Try Gemini first
       const g = await callGemini({ apiKey: GEMINI_API_KEY, messages: compact });
 
       if (g.ok) {
@@ -501,7 +492,6 @@ app.post("/chat", async (req, res) => {
         return { answer, provider_used: "gemini", model_used: "gemini-2.5-flash" };
       }
 
-      // If Gemini failed for reasons other than rate/quota -> stop
       if (!isRateLimitOrQuota(g.status, g.raw)) {
         const e = new Error("Gemini API error");
         e.status = g.status || 500;
@@ -509,10 +499,11 @@ app.post("/chat", async (req, res) => {
         throw e;
       }
 
-      // 2) Fallback to Groq when Gemini is rate-limited/quota
       const GROQ_API_KEY = process.env.GROQ_API_KEY;
       if (!GROQ_API_KEY) {
-        const e = new Error("Gemini rate-limited, and Missing GROQ_API_KEY for fallback");
+        const e = new Error(
+          "Gemini rate-limited, and Missing GROQ_API_KEY for fallback"
+        );
         e.status = 429;
         e.detail = g.raw;
         throw e;
@@ -522,7 +513,11 @@ app.post("/chat", async (req, res) => {
       let lastGroq = null;
 
       for (const model of groqModels) {
-        const o = await callGroqChat({ apiKey: GROQ_API_KEY, model, messages: compact });
+        const o = await callGroqChat({
+          apiKey: GROQ_API_KEY,
+          model,
+          messages: compact
+        });
         lastGroq = { model, status: o.status, raw: o.raw };
 
         if (o.ok) {
@@ -531,15 +526,12 @@ app.post("/chat", async (req, res) => {
           return { answer, provider_used: "groq", model_used: model };
         }
 
-        // If Groq fails for non-rate-limit reasons, stop early
         if (!isRateLimitOrQuota(o.status, o.raw)) {
           const e = new Error("Groq API error");
           e.status = o.status || 500;
           e.detail = o.raw;
           throw e;
         }
-
-        // else: rate-limited => try next Groq model
       }
 
       const status = (lastGroq && lastGroq.status) || 429;
@@ -552,7 +544,13 @@ app.post("/chat", async (req, res) => {
         groq: {
           tried_models: groqModels,
           last: lastGroq
-            ? { model: lastGroq.model, status: lastGroq.status, detail: safeJson(lastGroq.raw) ? safeJson(lastGroq.raw) : lastGroq.raw }
+            ? {
+                model: lastGroq.model,
+                status: lastGroq.status,
+                detail: safeJson(lastGroq.raw)
+                  ? safeJson(lastGroq.raw)
+                  : lastGroq.raw
+              }
             : null
         }
       };
@@ -574,13 +572,147 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-
 // ================== HTTP SERVER ==================
 const server = http.createServer(app);
 
-// ================== WEBSOCKET ==================
-const wss = new WebSocket.Server({ server });
+// ================== WEBSOCKET (FIX: noServer + route by path) ==================
+// WS cũ (bệnh án)
+const wss = new WebSocket.Server({ noServer: true });
 
+// WS hội chẩn
+const hoichanWss = new WebSocket.Server({ noServer: true });
+
+const HOICHAN_PATH = "/ws-hoichan";
+
+// ---------- HOI CHAN: DB helpers ----------
+async function hoichanInitTable() {
+  if (!pool) {
+    console.warn("[hoichan] Missing DATABASE_URL => history will NOT be stored.");
+    return;
+  }
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS hoichan_messages (
+      id TEXT PRIMARY KEY,
+      sub TEXT NOT NULL,
+      name TEXT NOT NULL,
+      text TEXT NOT NULL,
+      at BIGINT NOT NULL
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_hoichan_messages_at
+    ON hoichan_messages(at DESC);
+  `);
+  console.log("[hoichan] table ready");
+}
+
+async function hoichanLoadLatest(limit = 50) {
+  if (!pool) return [];
+  const n = Math.max(1, Math.min(Number(limit) || 50, 200));
+  const { rows } = await pool.query(
+    `SELECT id, sub, name, text, at
+     FROM hoichan_messages
+     ORDER BY at DESC
+     LIMIT $1`,
+    [n]
+  );
+  return rows.reverse();
+}
+
+async function hoichanInsert(m) {
+  if (!pool) return;
+  await pool.query(
+    `INSERT INTO hoichan_messages (id, sub, name, text, at)
+     VALUES ($1,$2,$3,$4,$5)
+     ON CONFLICT (id) DO NOTHING`,
+    [m.id, m.sub, m.name, m.text, m.at]
+  );
+}
+
+async function verifyGoogleIdToken(idToken) {
+  const ticket = await googleClient.verifyIdToken({
+    idToken,
+    audience: GOOGLE_CLIENT_ID
+  });
+  const p = ticket.getPayload();
+  return { name: p?.name || "Unknown", sub: p?.sub || "" };
+}
+
+function safeSendHC(ws, obj) {
+  if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+}
+
+function broadcastHC(obj) {
+  const data = JSON.stringify(obj);
+  for (const client of hoichanWss.clients) {
+    if (client.readyState === WebSocket.OPEN) client.send(data);
+  }
+}
+
+// ---------- HOI CHAN: WS logic ----------
+hoichanWss.on("connection", (ws) => {
+  ws._hoichanUser = null;
+
+  hoichanLoadLatest(50)
+    .then((items) => safeSendHC(ws, { type: "history", items }))
+    .catch(() => safeSendHC(ws, { type: "history", items: [] }));
+
+  ws.on("message", async (buf) => {
+    let msg;
+    try {
+      msg = JSON.parse(buf.toString());
+    } catch {
+      return;
+    }
+
+    if (msg.type === "auth") {
+      try {
+        const token = String(msg.token || "");
+        if (!token) {
+          safeSendHC(ws, { type: "error", message: "Missing Google token" });
+          ws.close();
+          return;
+        }
+        ws._hoichanUser = await verifyGoogleIdToken(token);
+        safeSendHC(ws, {
+          type: "auth_ok",
+          name: ws._hoichanUser.name,
+          sub: ws._hoichanUser.sub
+        });
+      } catch {
+        safeSendHC(ws, { type: "error", message: "Google token không hợp lệ" });
+        ws.close();
+      }
+      return;
+    }
+
+    if (!ws._hoichanUser) {
+      safeSendHC(ws, { type: "error", message: "Bạn chưa đăng nhập" });
+      ws.close();
+      return;
+    }
+
+    if (msg.type === "send") {
+      const text = String(msg.text || "").trim();
+      if (!text) return;
+      if (text.length > 2000) return;
+
+      const out = {
+        type: "message",
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        name: ws._hoichanUser.name,
+        sub: ws._hoichanUser.sub,
+        text,
+        at: Date.now()
+      };
+
+      hoichanInsert(out).catch((e) => console.error("[hoichan] insert error", e));
+      broadcastHC(out);
+    }
+  });
+});
+
+// ================== WS CŨ (BỆNH ÁN) - GIỮ NGUYÊN ==================
 // roomId -> { clients:Set<ws>, lastState:Object|null, locks:Map<string,{by:string,at:number}> }
 const rooms = new Map();
 
@@ -648,7 +780,11 @@ wss.on("connection", (ws) => {
         });
       }
 
-      safeSend(ws, { type: "locks", room: roomId, payload: Object.fromEntries(room.locks) });
+      safeSend(ws, {
+        type: "locks",
+        room: roomId,
+        payload: Object.fromEntries(room.locks)
+      });
 
       safeSend(ws, { type: "joined", room: roomId });
       notifyPresence(roomId);
@@ -662,7 +798,6 @@ wss.on("connection", (ws) => {
       if (by && !ws._clientId) ws._clientId = by;
     }
 
-    
     if (type === "lock") {
       const room = getRoom(roomId);
       const fieldId = String(msg.fieldId || "").trim();
@@ -672,13 +807,22 @@ wss.on("connection", (ws) => {
 
       const cur = room.locks.get(fieldId);
       if (cur && cur.by && cur.by !== locker) {
-        // đã có người khác lock => báo lại cho requester
-        safeSend(ws, { type: "lock-denied", room: roomId, fieldId, by: cur.by, at: cur.at || Date.now() });
+        safeSend(ws, {
+          type: "lock-denied",
+          room: roomId,
+          fieldId,
+          by: cur.by,
+          at: cur.at || Date.now()
+        });
         return;
       }
 
       room.locks.set(fieldId, { by: locker, at: msg.at || Date.now() });
-      broadcast(roomId, { type: "lock", room: roomId, fieldId, by: locker, at: msg.at || Date.now() }, ws);
+      broadcast(
+        roomId,
+        { type: "lock", room: roomId, fieldId, by: locker, at: msg.at || Date.now() },
+        ws
+      );
       return;
     }
 
@@ -692,12 +836,16 @@ wss.on("connection", (ws) => {
       const cur = room.locks.get(fieldId);
       if (cur && cur.by === locker) {
         room.locks.delete(fieldId);
-        broadcast(roomId, { type: "unlock", room: roomId, fieldId, by: locker, at: msg.at || Date.now() }, ws);
+        broadcast(
+          roomId,
+          { type: "unlock", room: roomId, fieldId, by: locker, at: msg.at || Date.now() },
+          ws
+        );
       }
       return;
     }
 
-if (type === "state") {
+    if (type === "state") {
       const room = getRoom(roomId);
       if (msg.payload && typeof msg.payload === "object") {
         room.lastState = msg.payload;
@@ -714,7 +862,6 @@ if (type === "state") {
       const room = getRoom(roomId);
       room.lastState = null;
 
-      // clear lock luôn để tránh kẹt ô sau khi reset
       room.locks.clear();
       broadcast(roomId, { type: "locks", room: roomId, payload: {} }, null);
 
@@ -728,7 +875,6 @@ if (type === "state") {
     const room = rooms.get(roomId);
     if (!room) return;
 
-    // cleanup locks do client này giữ
     const cid = ws._clientId;
     if (cid) {
       const toUnlock = [];
@@ -737,12 +883,18 @@ if (type === "state") {
       }
       if (toUnlock.length) {
         for (const fieldId of toUnlock) room.locks.delete(fieldId);
-        // broadcast unlock từng field để client cập nhật UI
         for (const fieldId of toUnlock) {
-          broadcast(roomId, { type: "unlock", room: roomId, fieldId, by: cid, at: Date.now() }, null);
+          broadcast(
+            roomId,
+            { type: "unlock", room: roomId, fieldId, by: cid, at: Date.now() },
+            null
+          );
         }
-        // và gửi snapshot locks để client mới join sync đúng
-        broadcast(roomId, { type: "locks", room: roomId, payload: Object.fromEntries(room.locks) }, null);
+        broadcast(
+          roomId,
+          { type: "locks", room: roomId, payload: Object.fromEntries(room.locks) },
+          null
+        );
       }
     }
 
@@ -755,7 +907,28 @@ if (type === "state") {
   });
 });
 
+// ================== UPGRADE ROUTER (QUAN TRỌNG) ==================
+server.on("upgrade", (req, socket, head) => {
+  const pathname = new URL(req.url, "http://localhost").pathname;
+
+  // Route hội chẩn
+  if (pathname === HOICHAN_PATH) {
+    hoichanWss.handleUpgrade(req, socket, head, (ws) => {
+      hoichanWss.emit("connection", ws, req);
+    });
+    return;
+  }
+
+  // Default: WS cũ (bệnh án)
+  wss.handleUpgrade(req, socket, head, (ws) => {
+    wss.emit("connection", ws, req);
+  });
+});
+
 // ================== START SERVER ==================
 server.listen(PORT, () => {
   console.log("Server listening on port", PORT);
+
+  // init table hội chẩn (nếu pool có)
+  hoichanInitTable().catch((e) => console.error("[hoichan] init table error", e));
 });
