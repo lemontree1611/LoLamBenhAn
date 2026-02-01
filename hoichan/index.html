@@ -10,7 +10,7 @@
     Nếu bạn đang có CSP ở nơi khác, connect-src phải cho phép wss://lolambenhan.onrender.com
   -->
 
-  <link rel="stylesheet" href="../source/hoichan.css" />
+  <link rel="stylesheet" href="source/hoichan.css" />
 
   <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -22,15 +22,17 @@
     <section id="loginScreen" class="screen loginScreen">
       <div class="card">
         <div class="brand">
-          <div class="dot"></div>
+          <div class="dot">
+            <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
           <div>
-            <div class="title">Hội chẩn</div>
-            <div class="subtitle">Đăng nhập Google để bắt đầu chat</div>
+            <div class="title">Hội chẩn liên chuyên khoa</div>
+            <div class="subtitle">Đăng nhập để tham gia hội chẩn</div>
           </div>
         </div>
 
         <div id="googleBtn" class="googleBtn"></div>
-        <div class="hint">Tên chat sẽ lấy theo tên Google của bạn.</div>
+        <div class="hint">Chào mừng bác sĩ đến phòng hội chẩn.</div>
 
       </div>
     </section>
@@ -42,18 +44,23 @@
           <div class="pill">Hội chẩn</div>
           <div class="me" id="meLabel"></div>
         </div>
-        <button class="ghostBtn" id="logoutBtn">Đăng xuất</button>
+        <button class="ghostBtn" id="logoutBtn">
+          <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Đăng xuất
+        </button>
       </header>
 
       <main class="messages" id="messages"></main>
 
       <footer class="composer">
         <input id="msgInput" class="input" placeholder="Nhập tin nhắn…" autocomplete="off" />
-        <button id="sendBtn" class="sendBtn">Gửi</button>
+        <button id="sendBtn" class="sendBtn">
+          <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
       </footer>
     </section>
   </div>
 
-  <script type="module" src="../source/app.js"></script>
+  <script type="module" src="source/app.js"></script>
 </body>
 </html>
