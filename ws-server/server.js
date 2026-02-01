@@ -8,7 +8,7 @@ const express = require("express");
 const cors = require("cors");
 const crypto = require("crypto");
 const { Pool } = require("pg");
-
+const { OAuth2Client } = require("google-auth-library");
 const PORT = process.env.PORT || 10000;
 
 // ================== EXPRESS (HTTP API) ==================
@@ -67,10 +67,18 @@ const DATABASE_URL = process.env.DATABASE_URL || "";
 let pool = null;
 
 if (DATABASE_URL) {
-  pool = new Pool({ connectionString: DATABASE_URL });
+  // Render Postgres thường yêu cầu SSL. Local dev có thể không cần.
+  const needsSSL =
+    process.env.NODE_ENV === "production" || DATABASE_URL.includes("render.com");
+
+  pool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: needsSSL ? { rejectUnauthorized: false } : false
+  });
 } else {
   console.warn("Missing DATABASE_URL - comments APIs will not work until set.");
 }
+
 
 // ====== ADMIN (simple token) ======
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
@@ -580,6 +588,155 @@ const server = http.createServer(app);
 
 // ================== WEBSOCKET ==================
 const wss = new WebSocket.Server({ server });
+
+// ================== HOI CHAN CHAT (GOOGLE LOGIN + POSTGRES) ==================
+// WS path riêng để không đụng WS room/state hiện tại
+const HOICHAN_PATH = process.env.HOICHAN_WS_PATH || "/ws-hoichan";
+const GOOGLE_CLIENT_ID =
+  process.env.GOOGLE_CLIENT_ID ||
+  "809932517901-53dirqapfjqbroadjilk8oeqtj0qugfj.apps.googleusercontent.com";
+
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+
+// WebSocket server riêng cho chat hội chẩn
+const hoichanWss = new WebSocket.Server({ server, path: HOICHAN_PATH });
+
+function safeSendHC(ws, obj) {
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(obj));
+  }
+}
+
+function broadcastHC(obj) {
+  const data = JSON.stringify(obj);
+  for (const client of hoichanWss.clients) {
+    if (client.readyState === WebSocket.OPEN) client.send(data);
+  }
+}
+
+async function hoichanInitTable() {
+  if (!pool) {
+    console.warn("[hoichan] Missing DATABASE_URL => history will NOT be stored.");
+    return;
+  }
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS hoichan_messages (
+      id TEXT PRIMARY KEY,
+      sub TEXT NOT NULL,
+      name TEXT NOT NULL,
+      text TEXT NOT NULL,
+      at BIGINT NOT NULL
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_hoichan_messages_at
+    ON hoichan_messages(at DESC);
+  `);
+  console.log("[hoichan] table ready");
+}
+
+async function hoichanLoadLatest(limit = 50) {
+  if (!pool) return [];
+  const n = Math.max(1, Math.min(Number(limit) || 50, 200));
+  const { rows } = await pool.query(
+    `SELECT id, sub, name, text, at
+     FROM hoichan_messages
+     ORDER BY at DESC
+     LIMIT $1`,
+    [n]
+  );
+  return rows.reverse().map((r) => ({ type: "message", ...r }));
+}
+
+async function hoichanInsert(m) {
+  if (!pool) return;
+  await pool.query(
+    `INSERT INTO hoichan_messages (id, sub, name, text, at)
+     VALUES ($1,$2,$3,$4,$5)
+     ON CONFLICT (id) DO NOTHING`,
+    [m.id, m.sub, m.name, m.text, m.at]
+  );
+}
+
+async function verifyGoogleIdToken(idToken) {
+  const ticket = await googleClient.verifyIdToken({
+    idToken,
+    audience: GOOGLE_CLIENT_ID
+  });
+  const p = ticket.getPayload();
+  return { name: p?.name || "Unknown", sub: p?.sub || "" };
+}
+
+hoichanWss.on("connection", (ws, req) => {
+  ws._hoichanUser = null;
+
+  hoichanLoadLatest(50)
+    .then((items) => safeSendHC(ws, { type: "history", items }))
+    .catch(() => safeSendHC(ws, { type: "history", items: [] }));
+
+  ws.on("message", async (buf) => {
+    let msg;
+    try {
+      msg = JSON.parse(buf.toString());
+    } catch {
+      return;
+    }
+
+    // 1) AUTH
+    if (msg.type === "auth") {
+      try {
+        const token = String(msg.token || "");
+        if (!token) {
+          safeSendHC(ws, { type: "error", message: "Missing Google token" });
+          ws.close();
+          return;
+        }
+        ws._hoichanUser = await verifyGoogleIdToken(token);
+        safeSendHC(ws, {
+          type: "auth_ok",
+          name: ws._hoichanUser.name,
+          sub: ws._hoichanUser.sub
+        });
+      } catch {
+        safeSendHC(ws, { type: "error", message: "Google token không hợp lệ" });
+        ws.close();
+      }
+      return;
+    }
+
+    // 2) Require login before sending
+    if (!ws._hoichanUser) {
+      safeSendHC(ws, { type: "error", message: "Bạn chưa đăng nhập" });
+      ws.close();
+      return;
+    }
+
+    // 3) SEND
+    if (msg.type === "send") {
+      const text = String(msg.text || "").trim();
+      if (!text) return;
+      if (text.length > 2000) return;
+
+      const out = {
+        type: "message",
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        name: ws._hoichanUser.name,
+        sub: ws._hoichanUser.sub,
+        text,
+        at: Date.now()
+      };
+
+      // insert DB (async) + broadcast realtime
+      hoichanInsert(out).catch((e) => console.error("[hoichan] insert error", e));
+      broadcastHC(out);
+      return;
+    }
+  });
+});
+
+// Init table in background (safe if already exists)
+hoichanInitTable().catch((e) => console.error("[hoichan] init table error", e));
+
 
 // roomId -> { clients:Set<ws>, lastState:Object|null, locks:Map<string,{by:string,at:number}> }
 const rooms = new Map();
