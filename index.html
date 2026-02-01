@@ -132,15 +132,31 @@
             <p class="subtitle">Hỗ trợ sinh viên Y khoa làm bệnh án nhanh chóng</p>
         </header>
 
-        <div class="card-grid">
+        <!-- Apple-style toggle switch -->
+        <div class="tab-toggle-wrap">
+            <span class="tab-label tab-label--left" id="tab-label-left">Tứ trụ</span>
+            <button class="tab-toggle" id="tab-toggle" type="button" aria-label="Chuyển tab" role="switch" aria-checked="false">
+                <span class="tab-toggle__track">
+                    <span class="tab-toggle__thumb"></span>
+                </span>
+            </button>
+            <span class="tab-label tab-label--right" id="tab-label-right">CK lẻ</span>
+        </div>
+
+        <!-- Tứ trụ: Nội khoa, Tiền phẫu, Hậu phẫu, Sản khoa, Phụ khoa, Nhi khoa -->
+        <div class="card-grid" id="grid-tutu">
             <a href="noikhoa/" class="card"><h3>Nội khoa</h3><p>Bệnh án nội khoa</p></a>
             <a href="tienphau/" class="card"><h3>Tiền phẫu</h3><p>Bệnh án tiền phẫu thuật</p></a>
             <a href="hauphau/" class="card"><h3>Hậu phẫu</h3><p>Bệnh án hậu phẫu thuật</p></a>
             <a href="sankhoa/" class="card"><h3>Sản khoa</h3><p>Bệnh án sản khoa</p></a>
             <a href="phukhoa/" class="card"><h3>Phụ khoa</h3><p>Bệnh án phụ khoa</p></a>
             <a href="nhikhoa/" class="card"><h3>Nhi khoa</h3><p>Bệnh án nhi khoa</p></a>
-            <a href="yhct/" class="card"><h3>Y học cổ truyền</h3><p>Bệnh án Y học cổ truyền</p></a>
+        </div>
+
+        <!-- CK lẻ: GMHS, YHCT -->
+        <div class="card-grid" id="grid-ckle" style="display:none;">
             <a href="gmhs/" class="card"><h3>Gây mê hồi sức</h3><p>Bệnh án gây mê hồi sức</p></a>
+            <a href="yhct/" class="card"><h3>Y học cổ truyền</h3><p>Bệnh án Y học cổ truyền</p></a>
         </div>
 
         <!-- Comments Section -->
@@ -544,6 +560,53 @@
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && !modal.classList.contains('is-hidden')) closePopup();
     });
+})();
+// =============================================
+
+// ===== Tab Toggle: Tứ trụ ↔ CK lẻ =====
+(function initTabToggle(){
+    const toggle   = document.getElementById('tab-toggle');
+    const gridTutu = document.getElementById('grid-tutu');
+    const gridCkle = document.getElementById('grid-ckle');
+    const labelL   = document.getElementById('tab-label-left');
+    const labelR   = document.getElementById('tab-label-right');
+    if(!toggle) return;
+
+    let isCkle = false; // default: Tứ trụ
+
+    function apply(animate){
+        toggle.setAttribute('aria-checked', String(isCkle));
+        toggle.classList.toggle('is-on', isCkle);
+
+        labelL.classList.toggle('is-active', !isCkle);
+        labelR.classList.toggle('is-active',  isCkle);
+
+        // swap grids with fade
+        const showing = isCkle ? gridCkle : gridTutu;
+        const hiding  = isCkle ? gridTutu : gridCkle;
+
+        hiding.classList.add('tab-exit');
+        hiding.classList.remove('tab-enter');
+
+        // after exit finishes, hide & show the other
+        setTimeout(()=>{
+            hiding.style.display  = 'none';
+            hiding.classList.remove('tab-exit');
+
+            showing.style.display = 'grid';
+            // force reflow
+            void showing.offsetHeight;
+            showing.classList.add('tab-enter');
+            setTimeout(()=> showing.classList.remove('tab-enter'), 320);
+        }, animate ? 220 : 0);
+    }
+
+    toggle.addEventListener('click', ()=>{
+        isCkle = !isCkle;
+        apply(true);
+    });
+
+    apply(false); // init without animation
 })();
 // =============================================
 
