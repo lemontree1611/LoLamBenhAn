@@ -70,7 +70,7 @@ html, body {
 
 .card {
   width: 100%;
-  max-width: 380px;
+  max-width: 420px;
   background: var(--surface);
   border-radius: 28px;
   box-shadow: var(--shadow), 0 1px 0 var(--border) inset;
