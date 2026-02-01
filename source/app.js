@@ -28,6 +28,13 @@ function base64UrlToUint8Array(b64url) {
   return bytes;
 }
 
+function withBsPrefix(name) {
+  const n = String(name || "").trim();
+  if (!n) return "Bs. ";
+  if (/^bs\.\s*/i.test(n)) return n;
+  return `Bs. ${n}`;
+}
+
 function decodeJwt(jwt) {
   try {
     const payloadPart = jwt.split(".")[1];
@@ -69,7 +76,9 @@ function renderMessage(m) {
 
   const who = document.createElement("span");
   who.className = "who";
-  who.textContent = mine ? (my.name || "Bạn") : (m.name || "Unknown");
+  who.textContent = mine
+  ? (my.name || "Bs.")
+  : withBsPrefix(m.name || "Unknown");
 
   const time = document.createElement("span");
   time.className = "time";
@@ -148,7 +157,7 @@ function setAuthed(credential) {
   localStorage.setItem("hoichan_google_token", token);
 
   const p = decodeJwt(token);
-  my.name = p?.name || "Bạn";
+  my.name = withBsPrefix(p?.name || "Bạn");
   my.sub = p?.sub || "";
 
   meLabel.textContent = `Bạn: ${my.name}`;
