@@ -21,14 +21,30 @@ let token = localStorage.getItem("hoichan_google_token") || "";
 let my = { name: "", sub: "" };
 
 // ====== Helpers ======
+// FIX: atob() không decode UTF-8 -> chữ có dấu bị hỏng (TrÃ­ LÃª)
+function base64UrlToUint8Array(b64url) {
+  const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = b64.length % 4 ? "=".repeat(4 - (b64.length % 4)) : "";
+  const bin = atob(b64 + pad);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
 function decodeJwt(jwt) {
   try {
-    const payload = jwt.split(".")[1];
-    const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
-    return json;
+    const payloadPart = jwt.split(".")[1];
+    const bytes = base64UrlToUint8Array(payloadPart);
+    const jsonText = new TextDecoder("utf-8").decode(bytes);
+    return JSON.parse(jsonText);
   } catch {
     return null;
   }
+}
+
+function fmtTime(ms) {
+  const d = new Date(Number(ms) || Date.now());
+  return d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 }
 
 function showChat() {
@@ -50,12 +66,21 @@ function renderMessage(m) {
   const row = document.createElement("div");
   row.className = `row ${mine ? "rowMine" : "rowOther"}`;
 
-  if (!mine) {
-    const name = document.createElement("div");
-    name.className = "name";
-    name.textContent = m.name || "Unknown";
-    row.appendChild(name);
-  }
+  // Meta: name + time (hiện cho cả mine và other theo yêu cầu)
+  const meta = document.createElement("div");
+  meta.className = "meta";
+
+  const who = document.createElement("span");
+  who.className = "who";
+  who.textContent = mine ? (my.name || "Bạn") : (m.name || "Unknown");
+
+  const time = document.createElement("span");
+  time.className = "time";
+  time.textContent = fmtTime(m.at);
+
+  meta.appendChild(who);
+  meta.appendChild(time);
+  row.appendChild(meta);
 
   const bubble = document.createElement("div");
   bubble.className = `bubble ${mine ? "mine" : "other"}`;
@@ -104,12 +129,10 @@ function connectWS() {
   };
 
   ws.onerror = () => {
-    // thường do CSP/URL sai/WS server down
     console.log("WS error");
   };
 
   ws.onclose = () => {
-    // auto reconnect nhẹ nếu vẫn còn token
     if (token) setTimeout(connectWS, 900);
   };
 }
@@ -128,7 +151,7 @@ function setAuthed(credential) {
   localStorage.setItem("hoichan_google_token", token);
 
   const p = decodeJwt(token);
-  my.name = p?.name || "You";
+  my.name = p?.name || "Bạn";
   my.sub = p?.sub || "";
 
   meLabel.textContent = `Bạn: ${my.name}`;
@@ -148,7 +171,6 @@ function logout() {
   resetChatUI();
   showLogin();
 
-  // (optional) disable auto select
   if (window.google?.accounts?.id) {
     window.google.accounts.id.disableAutoSelect();
   }
