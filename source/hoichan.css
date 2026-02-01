@@ -122,9 +122,11 @@ body{
   padding-left: 6px;
   color: var(--muted);
   font-size: 12px;
+  opacity:.7;
 }
 .meta .time{
   color: rgba(17,24,39,0.45);
+  opacity:.7;
 }
 
 /* Bubble */
