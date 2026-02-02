@@ -674,6 +674,8 @@ html, body {
   .topbar { padding: 10px 14px; padding-top: calc(10px + env(safe-area-inset-top,0px)); }
   .composer { padding: 8px 10px; padding-bottom: calc(8px + env(safe-area-inset-bottom,0px)); }
   .chatShell { margin: 10px 10px; border-radius: 20px; }
+  .ghostBtnText { display: none; }
+  .ghostBtn { padding: 6px; gap: 0; }
 }
 
 /* Full-screen login on very small screens */
