@@ -148,6 +148,12 @@ html, body {
   color: var(--text);
 }
 
+@media (max-width: 768px) {
+  .title {
+    font-size: 18px;
+  }
+}
+
 .subtitle {
   font-size: 13px;
   color: var(--text-secondary);
