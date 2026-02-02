@@ -282,6 +282,7 @@ function getFormData() {
     bio_rows: _getHiddenJson("bio_json"),
     ecg: getField('ecg'),
     xquang: getField('xquang'),
+    canlamsang_khac: getField('canlamsang_khac'),
 
     // VI
     mach: getField('mach'),
@@ -374,20 +375,21 @@ function buildHTMLDoc() {
   </table>
 
   <p style="margin-top:12px;"><b>V. CẬN LÂM SÀNG</b></p>
-  <p><b>1. Huyết học</b></p>
+  <p>1. Huyết học</p>
   <table>
     <thead><tr><th style="width:40%;">Chỉ số</th><th>Kết quả</th></tr></thead>
     <tbody>${hemHtml || ""}</tbody>
   </table>
 
-  <p style="margin-top:10px;"><b>2. Sinh hóa máu</b></p>
+  <p style="margin-top:10px;">2. Sinh hóa máu</p>
   <table>
     <thead><tr><th style="width:40%;">Chỉ số</th><th>Kết quả</th></tr></thead>
     <tbody>${bioHtml || ""}</tbody>
   </table>
 
-  <p style="margin-top:10px;"><b>3. ECG:</b><br/>${nl2br(data.ecg)}</p>
-  <p style="margin-top:6px;"><b>4. Xquang ngực thẳng:</b><br/>${nl2br(data.xquang)}</p>
+  <p style="margin-top:10px;">3. ECG:<br/>${nl2br(data.ecg)}</p>
+  <p style="margin-top:6px;">4. Xquang ngực thẳng:<br/>${nl2br(data.xquang)}</p>
+  <p style="margin-top:6px;">${nl2br(data.canlamsang_khac)}</p>
 
   <p style="margin-top:12px;"><b>VI. KHÁM LÂM SÀNG</b></p>
   <p>- Sinh hiệu: Mạch ${escapeHtml(data.mach)} lần/phút, nhiệt độ ${escapeHtml(data.nhietdo)} °C,
@@ -596,17 +598,19 @@ async function generateDocx() {
 
           // V
           paraHeading("V. CẬN LÂM SÀNG", { spacing: { ...basePara.spacing, before: 160, after: 40 } }),
-          paraHeading("1. Huyết học", { spacing: { ...basePara.spacing, before: 80, after: 20 } }),
+          para("1. Huyết học", { spacing: { ...basePara.spacing, before: 80, after: 20 } }),
           ...buildLinesFromRows(data.hem_rows, (r) => `${(r?.name || "").trim()}: ${(r?.value || "").trim()}`),
 
-          paraHeading("2. Sinh hóa máu", { spacing: { ...basePara.spacing, before: 120, after: 20 } }),
+          para("2. Sinh hóa máu", { spacing: { ...basePara.spacing, before: 120, after: 20 } }),
           ...buildLinesFromRows(data.bio_rows, (r) => `${(r?.name || "").trim()}: ${(r?.value || "").trim()}`),
 
-          paraHeading("3. ECG", { spacing: { ...basePara.spacing, before: 120, after: 20 } }),
+          para("3. ECG", { spacing: { ...basePara.spacing, before: 120, after: 20 } }),
           ...textToParagraphs(data.ecg),
 
-          paraHeading("4. Xquang ngực thẳng", { spacing: { ...basePara.spacing, before: 120, after: 20 } }),
+          para("4. Xquang ngực thẳng", { spacing: { ...basePara.spacing, before: 120, after: 20 } }),
           ...textToParagraphs(data.xquang),
+
+          ...textToParagraphs(data.canlamsang_khac),
 
           // VI
           paraHeading("VI. KHÁM LÂM SÀNG", { spacing: { ...basePara.spacing, before: 160, after: 40 } }),
