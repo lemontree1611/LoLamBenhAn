@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Nội khoa</title>
-  <link rel="stylesheet" href="../source/style.css?v=1.0.2">
+  <title>Nhi khoa</title>
+  <link rel="stylesheet" href="../../source/style.css?v=1.0.2">
   <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQmj7drT8_gPK2zwTd5CMdWRNdIQmHNP2T9Kg&s">
   <!-- Thư viện tạo DOCX -->
-  <script src="../source/libs/index.umd.js"></script>
-  <script src="../source/libs/FileSaver.min.js"></script>
+  <script src="../../source/libs/index.umd.js"></script>
+  <script src="../../source/libs/FileSaver.min.js"></script>
 
 
 </head>
@@ -17,20 +17,22 @@
 
 <!-- Top Glass Bar (Actions + Chat) -->
 <div id="topbar" class="topbar glass" role="navigation" aria-label="Thanh công cụ">
-  <a class="tb-btn tb-home" href="../" aria-label="Trang chủ">
+  <a class="tb-btn tb-home" href="../../" aria-label="Trang chủ">
     <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
       <path d="M12 3.2 3 10.4v10.1c0 .8.7 1.5 1.5 1.5H9.5v-6.7c0-.4.3-.8.8-.8h3.4c.4 0 .8.3.8.8V22h5c.8 0 1.5-.7 1.5-1.5V10.4L12 3.2Z" fill="currentColor"/>
       <path d="M20.7 9.8 12 2.6 3.3 9.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
   </a>
 
-  <div class="tb-actions" aria-label="Tác vụ"><button class="tb-btn" id="btn-share" title="Chia sẻ" type="button"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24">
+  <div class="tb-actions" aria-label="Tác vụ">
+    
+    <button class="tb-btn" id="btn-share" title="Chia sẻ" type="button"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24">
   <!-- Apple-ish simple share icon -->
   <path d="M12 3v10" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"/>
   <path d="M8.5 6.5 12 3l3.5 3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/>
   <path d="M7.5 10.5h9A3 3 0 0 1 19.5 13.5v5A3.5 3.5 0 0 1 16 22H8A3.5 3.5 0 0 1 4.5 18.5v-5A3 3 0 0 1 7.5 10.5Z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.8"/>
 </svg><span>Chia sẻ</span></button>
-    <button type="button" class="tb-btn" id="btn-export" title="Xuất file Word"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+<button type="button" class="tb-btn" id="btn-export" title="Xuất file Word"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
   <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
   <path d="M14 3v5h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
   <path d="M12 11v6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
@@ -54,10 +56,10 @@
   <button type="button" class="tb-btn tb-chat" id="btn-chat" aria-expanded="false" aria-controls="chat-panel" title="Chat"><img class="tb-chat-img" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQmj7drT8_gPK2zwTd5CMdWRNdIQmHNP2T9Kg&s" alt="" aria-hidden="true" />
 <span class="tb-chat-text">Let me cook bro</span></button>
 </div>
-<h1>Form BỆNH ÁN NỘI KHOA</h1>
+<h1>Form BỆNH ÁN NHI KHOA</h1>
 <p class="small">Nhập thông tin rồi nhấn <strong>XUẤT FILE WORD</strong> để lưu bệnh án hoàn chỉnh về máy.</p>
-<div id="share-notice"></div>
 
+<div id="share-notice"></div>
 
 <form id="benhanForm" onsubmit="return false;">
   <div class="section">
@@ -76,8 +78,8 @@
         </select>
       </div>
       <div class="col">
-        <label>3. Năm sinh</label>
-        <input id="namsinh" type="number" min="1900" max="2100" placeholder="1980" />
+        <label>3. Sinh ngày</label>
+        <input id="ngaysinh" type="date" />
         <div class="small">Tuổi: <span id="tuoi">-</span></div>
       </div>
     </div>
@@ -85,13 +87,16 @@
     <label>4. Dân tộc</label>
     <input id="dantoc" type="text" />
 
-    <label>5. Nghề nghiệp</label>
+    <label>5. Họ tên bố/mẹ</label>
+    <input id="hoten_bome" type="text" />
+
+    <label>6. Nghề nghiệp</label>
     <input id="nghenghiep" type="text" />
 
-    <label>6. Địa chỉ</label>
+    <label>7. Địa chỉ</label>
     <input id="diachi" type="text" />
 
-    <label>7. Ngày giờ vào viện</label>
+    <label>8. Ngày giờ vào viện</label>
     <input id="ngaygio" type="datetime-local" />
   </div>
 
@@ -106,9 +111,12 @@
 
     <label>3. Tiền sử</label>
       <textarea id="tiensu">a) Bản thân:
-  - Nội khoa: Không THA, ĐTĐ2
+  - Sản khoa của mẹ: PARA 2002 (em là con lần 2, sinh thường, 37w, CNLS 3000g, không tai biến, sau sinh khóc ngay, hậu sản ổn)
+  - Dinh dưỡng: Sữa mẹ trong 6 tháng đầu, >6 tháng tập ăn dặm
+  - Phát triển tinh thần, vận động phù hợp với lứa tuổi
+  - Chủng ngừa: Đầy đủ theo lịch TCMR (phế cầu ?)
+  - Nội khoa: Chưa từng nhập viện trước đây
   - Ngoại khoa: Chưa từng phẫu thuật
-  - Thói quen: Không thuốc lá rượu bia
   - Không tiền sử dị ứng thuốc, thức ăn
 b) Gia đình: Không ghi nhận bệnh lý liên quan</textarea>
   </div>
@@ -127,10 +135,9 @@ b) Gia đình: Không ghi nhận bệnh lý liên quan</textarea>
     <div>
       Chiều cao: <input type="number" id="chieucao" style="width:60px"> cm, 
       cân nặng: <input type="number" id="cannang" style="width:60px"> kg, 
-      BMI = <span id="bmi">-</span> kg/m² 
-      => Phân loại <span id="phanloai">-</span> theo WHO Asia
+      <span id="zscoreWrap" style="display:none">Đánh giá Z-score: <span id="zscoreStatus"></span><span id="wa">-</span>, <span id="ha">-</span>, <span id="wh">-</span></span>
     </div>
-    <textarea id="tongtrang">- Bệnh tỉnh, tiếp xúc tốt
+    <textarea id="tongtrang">- Em tỉnh, tiếp xúc được
 - Da niêm hồng, chi ấm, mạch rõ
 - Không phù, không dấu xuất huyết
 - Tuyến giáp không to
@@ -143,7 +150,7 @@ b) Gia đình: Không ghi nhận bệnh lý liên quan</textarea>
         <select id="timmachSelect" onchange="insertTimmach()">
             <option value="">-- Chọn --</option>
             <option value="T1 T2 đều rõ, không âm thổi">T1 T2 đều rõ, không âm thổi</option>
-            <option value="- Lòng ngực cân đối, không sẹo mổ cũ, mỏm tim ở liên sườn V đường trung đòn (T) diện đập 2x2cm, tĩnh mạch cổ không nổi 45o
+            <option value="- Lòng ngực cân đối, không sẹo mổ cũ, mỏm tim ở liên sườn IV đường trung đòn (T) diện đập 1x1cm
 - Không phát hiện ổ đập bất thường, rung miu (-), Harzer (-)
 - T1 T2 đều rõ, nảy cùng nhịp mạch, tần số  lần/phút, không âm thổi">- Lòng ngực cân đối, không sẹo mổ cũ...</option>
         </select>
@@ -155,7 +162,7 @@ b) Gia đình: Không ghi nhận bệnh lý liên quan</textarea>
         <select id="hohapSelect" onchange="insertHohap()">
             <option value="">-- Chọn --</option>
             <option value="Rì rào phế nang êm dịu 2 phế trường, không ran">Rì rào phế nang êm dịu 2 phế trường, không ran</option>
-            <option value="- Ngực di động theo nhịp thở, các khoảng gian sườn không dãn, không co kéo cơ hô hấp phụ
+            <option value="- Ngực di động theo nhịp thở, không co kéo cơ hô hấp phụ
 - Rung thanh đều 2 bên, gõ trong
 - Rì rào phế nang êm dịu 2 phế trường, không ran">- Ngực di động theo nhịp thở...</option>
         </select>
@@ -167,7 +174,7 @@ b) Gia đình: Không ghi nhận bệnh lý liên quan</textarea>
         <select id="TieuhoaSelect" onchange="insertTieuhoa()">
             <option value="">-- Chọn --</option>
             <option value="Bụng mềm, gan lách không sờ chạm, không diểm đau khu trú">Bụng mềm, gan lách không sờ chạm, không diểm đau khu trú</option>
-            <option value="- Bụng cân đối, không chướng, không sẹo mổ cũ, không tuần hoàn bàng hệ
+            <option value="- Bụng cân đối, không chướng, không tuần hoàn bàng hệ, không sẹo mổ cũ, rốn sạch
 - Nhu động #4 lần/phút. Gõ trong khắp bụng, đục vùng gan lách
 - Bụng mềm, gan lách không sờ chạm, không điểm đau khu trú
 - [Các nghiệm pháp cần làm]
@@ -213,7 +220,7 @@ b) Gia đình: Không ghi nhận bệnh lý liên quan</textarea>
             <option value="Không giới hạn vận động">Không giới hạn vận động</option>
             <option value="- Cột sống không gù vẹo, các khớp không biến dạng
 - Các khớp không viêm, ấn không đau, dấu chuông bấm (-), lasegue (-), bonnet (-)
-- Chiều dài chi 2 bên không lệch, Schober 15/10cm">- Cột sống không gù vẹo...</option>
+- Chiều dài chi 2 bên không lệch">- Cột sống không gù vẹo...</option>
         </select>
         <textarea id="cokhop"></textarea>
       </div>
@@ -311,3 +318,4 @@ b) Gia đình: Không ghi nhận bệnh lý liên quan</textarea>
 
 </body>
 </html>
+
