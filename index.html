@@ -83,8 +83,21 @@
 <!-- ============================================ -->
 
 
-    <!-- Admin login button (Liquid Glass) - góc phải -->
-    <div class="admin-widget">
+    <!-- Admin + Hội chẩn buttons (Liquid Glass) - góc phải -->
+    <div class="admin-widgets">
+        <a class="admin-btn admin-btn--icon hoichan-btn" href="hoichan/" title="Hội chẩn" aria-label="Hội chẩn">
+            <svg class="admin-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <defs>
+                    <linearGradient id="lg-hc" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0" stop-color="rgba(52,199,89,.9)"/>
+                        <stop offset="1" stop-color="rgba(10,132,255,.8)"/>
+                    </linearGradient>
+                </defs>
+                <path d="M7.2 4.8h9.6a3 3 0 0 1 3 3v5.2a3 3 0 0 1-3 3h-4.7l-3.7 3.2v-3.2H7.2a3 3 0 0 1-3-3V7.8a3 3 0 0 1 3-3Z" fill="url(#lg-hc)"/>
+                <path d="M9 10.7h6M12 8.4v4.6" stroke="rgba(255,255,255,.92)" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            <span class="admin-text">Hội chẩn</span>
+        </a>
         <button class="admin-btn admin-btn--icon" id="admin-btn" type="button" title="Admin login">
             <span class="admin-dot" id="admin-dot" aria-hidden="true"></span>
             <svg class="admin-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">

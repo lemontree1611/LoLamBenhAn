@@ -11,6 +11,7 @@
   -->
 
   <link rel="stylesheet" href="../source/hoichan.css" />
+  <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQmj7drT8_gPK2zwTd5CMdWRNdIQmHNP2T9Kg&s">
 
   <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -20,10 +21,19 @@
   <div class="app">
     <!-- LOGIN SCREEN -->
     <section id="loginScreen" class="screen loginScreen">
+      <a class="homeBtnLogin homeBtnLoginFloat" href="../" aria-label="Về trang chủ">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3.2 3 10.4v10.1c0 .8.7 1.5 1.5 1.5H9.5v-6.7c0-.4.3-.8.8-.8h3.4c.4 0 .8.3.8.8V22h5c.8 0 1.5-.7 1.5-1.5V10.4L12 3.2Z" fill="currentColor"/>
+          <path d="M20.7 9.8 12 2.6 3.3 9.8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
       <div class="card">
         <div class="brand">
-          <div class="dot">
-            <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <div class="brandIcon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M7.2 4.8h9.6a3 3 0 0 1 3 3v5.2a3 3 0 0 1-3 3h-4.7l-3.7 3.2v-3.2H7.2a3 3 0 0 1-3-3V7.8a3 3 0 0 1 3-3Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
+              <path d="M9 10.7h6M9 14h4.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
           </div>
           <div>
             <div class="title">Hội chẩn liên chuyên khoa</div>
@@ -39,28 +49,49 @@
 
     <!-- CHAT SCREEN -->
     <section id="chatScreen" class="screen chatScreen hidden">
-      <header class="topbar">
-        <div class="topLeft">
-          <div class="pill">Hội chẩn</div>
-          <div class="me" id="meLabel"></div>
-        </div>
-        <button class="ghostBtn" id="logoutBtn">
-          <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          Đăng xuất
-        </button>
-      </header>
+      <div class="chatShell liquidGlass">
+        <div id="cooldownToast" class="cooldownToast hidden" aria-live="polite"></div>
+        <header class="topbar">
+          <div class="topLeft">
+            <a class="homeBtn" href="../" aria-label="Về trang chủ">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3.2 3 10.4v10.1c0 .8.7 1.5 1.5 1.5H9.5v-6.7c0-.4.3-.8.8-.8h3.4c.4 0 .8.3.8.8V22h5c.8 0 1.5-.7 1.5-1.5V10.4L12 3.2Z" fill="currentColor"/>
+                <path d="M20.7 9.8 12 2.6 3.3 9.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </a>
+            <div class="pill">Phòng hội chẩn</div>
+            <div class="me" id="meLabel"></div>
+          </div>
+          <button class="ghostBtn" id="logoutBtn">
+            <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Đăng xuất
+          </button>
+        </header>
 
-      <main class="messages" id="messages"></main>
+        <main class="messages" id="messages"></main>
 
-      <footer class="composer">
-        <input id="msgInput" class="input" placeholder="Nhập tin nhắn…" autocomplete="off" />
-        <button id="sendBtn" class="sendBtn">
-          <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        </button>
-      </footer>
+        <footer class="composer">
+          <input id="fileInput" class="fileInput" type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" />
+          <button id="fileBtn" class="fileBtn" aria-label="Gửi ảnh hoặc file">
+            <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-8.49 8.49a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 1 1 4.95 4.95l-9.19 9.19a2 2 0 1 1-2.83-2.83l8.49-8.49"/></svg>
+          </button>
+          <input id="msgInput" class="input" placeholder="Nhập tin nhắn…" autocomplete="off" />
+          <button id="sendBtn" class="sendBtn">
+            <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </footer>
+      </div>
     </section>
   </div>
 
   <script type="module" src="../source/app.js"></script>
+
+  <!-- Liquid Glass SVG filter defs -->
+  <svg class="glassDefs" width="0" height="0" aria-hidden="true" focusable="false">
+    <filter id="liquidGlass" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.02" numOctaves="1" seed="3" result="noise" />
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="14" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
 </body>
 </html>

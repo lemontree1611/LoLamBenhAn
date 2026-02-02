@@ -491,11 +491,14 @@ footer p{color:var(--muted2);font-size:.92rem}
    Admin login button + modal (Liquid Glass)
    ========================= */
 
-.admin-widget{
+.admin-widgets{
   position: fixed;
   top: 16px;
   right: 16px;
   z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .admin-btn{
@@ -622,7 +625,7 @@ footer p{color:var(--muted2);font-size:.92rem}
 }
 
 @media (max-width: 480px){
-  .admin-widget{top: 12px; right: 12px}
+  .admin-widgets{top: 12px; right: 12px}
   .admin-text{display:none}
   .admin-btn{padding: 10px 12px}
 }
