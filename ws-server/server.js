@@ -9,6 +9,7 @@ const cors = require("cors");
 const crypto = require("crypto");
 const { Pool } = require("pg");
 const { OAuth2Client } = require("google-auth-library");
+const { v2: cloudinary } = require("cloudinary");
 
 const PORT = process.env.PORT || 10000;
 
@@ -18,6 +19,26 @@ const GOOGLE_CLIENT_ID =
   "809932517901-53dirqapfjqbroadjilk8oeqtj0qugfj.apps.googleusercontent.com";
 
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+const HOICHAN_ADMIN_EMAIL = "minhtri16112002@gmail.com";
+
+// ====== CLOUDINARY (Hoichan uploads) ======
+const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || "";
+const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY || "";
+const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET || "";
+const CLOUDINARY_FOLDER = process.env.CLOUDINARY_FOLDER || "hoichan";
+
+const cloudinaryEnabled =
+  !!(CLOUDINARY_CLOUD_NAME && CLOUDINARY_API_KEY && CLOUDINARY_API_SECRET);
+
+if (cloudinaryEnabled) {
+  cloudinary.config({
+    cloud_name: CLOUDINARY_CLOUD_NAME,
+    api_key: CLOUDINARY_API_KEY,
+    api_secret: CLOUDINARY_API_SECRET
+  });
+} else {
+  console.warn("[hoichan] Cloudinary not configured. File uploads will fail.");
+}
 
 // ================== EXPRESS (HTTP API) ==================
 const app = express();
@@ -595,10 +616,24 @@ async function hoichanInitTable() {
       id TEXT PRIMARY KEY,
       sub TEXT NOT NULL,
       name TEXT NOT NULL,
+      is_admin BOOLEAN DEFAULT FALSE,
       text TEXT NOT NULL,
+      file_name TEXT,
+      file_mime TEXT,
+      file_size INTEGER,
+      file_url TEXT,
+      file_public_id TEXT,
+      file_resource_type TEXT,
       at BIGINT NOT NULL
     );
   `);
+  await pool.query(`ALTER TABLE hoichan_messages ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;`);
+  await pool.query(`ALTER TABLE hoichan_messages ADD COLUMN IF NOT EXISTS file_name TEXT;`);
+  await pool.query(`ALTER TABLE hoichan_messages ADD COLUMN IF NOT EXISTS file_mime TEXT;`);
+  await pool.query(`ALTER TABLE hoichan_messages ADD COLUMN IF NOT EXISTS file_size INTEGER;`);
+  await pool.query(`ALTER TABLE hoichan_messages ADD COLUMN IF NOT EXISTS file_url TEXT;`);
+  await pool.query(`ALTER TABLE hoichan_messages ADD COLUMN IF NOT EXISTS file_public_id TEXT;`);
+  await pool.query(`ALTER TABLE hoichan_messages ADD COLUMN IF NOT EXISTS file_resource_type TEXT;`);
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_hoichan_messages_at
     ON hoichan_messages(at DESC);
@@ -610,7 +645,7 @@ async function hoichanLoadLatest(limit = 50) {
   if (!pool) return [];
   const n = Math.max(1, Math.min(Number(limit) || 50, 200));
   const { rows } = await pool.query(
-    `SELECT id, sub, name, text, at
+    `SELECT id, sub, name, is_admin, text, file_name, file_mime, file_size, file_url, file_public_id, file_resource_type, at
      FROM hoichan_messages
      ORDER BY at DESC
      LIMIT $1`,
@@ -622,10 +657,10 @@ async function hoichanLoadLatest(limit = 50) {
 async function hoichanInsert(m) {
   if (!pool) return;
   await pool.query(
-    `INSERT INTO hoichan_messages (id, sub, name, text, at)
-     VALUES ($1,$2,$3,$4,$5)
+    `INSERT INTO hoichan_messages (id, sub, name, is_admin, text, file_name, file_mime, file_size, file_url, file_public_id, file_resource_type, at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
      ON CONFLICT (id) DO NOTHING`,
-    [m.id, m.sub, m.name, m.text, m.at]
+    [m.id, m.sub, m.name, m.is_admin, m.text, m.file_name, m.file_mime, m.file_size, m.file_url, m.file_public_id, m.file_resource_type, m.at]
   );
 }
 
@@ -635,7 +670,7 @@ async function verifyGoogleIdToken(idToken) {
     audience: GOOGLE_CLIENT_ID
   });
   const p = ticket.getPayload();
-  return { name: p?.name || "Unknown", sub: p?.sub || "" };
+  return { name: p?.name || "Unknown", sub: p?.sub || "", email: p?.email || "" };
 }
 
 function safeSendHC(ws, obj) {
@@ -647,6 +682,112 @@ function broadcastHC(obj) {
   for (const client of hoichanWss.clients) {
     if (client.readyState === WebSocket.OPEN) client.send(data);
   }
+}
+
+const MAX_HOICHAN_FILE_BYTES = 5 * 1024 * 1024;
+
+function parseDataUrl(str) {
+  const s = String(str || "");
+  const m = /^data:([^;]+);base64,(.+)$/i.exec(s);
+  if (!m) return null;
+  return { mime: m[1], b64: m[2] };
+}
+
+function base64Bytes(b64) {
+  const clean = String(b64 || "");
+  const len = clean.length;
+  if (!len) return 0;
+  const padding = clean.endsWith("==") ? 2 : clean.endsWith("=") ? 1 : 0;
+  return Math.floor((len * 3) / 4) - padding;
+}
+
+async function hoichanCleanupOldFiles() {
+  if (!pool) return;
+  if (!cloudinaryEnabled) return;
+
+  const days = Math.max(1, Number(process.env.HOICHAN_CLEANUP_DAYS || 7));
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+
+  const { rows } = await pool.query(
+    `SELECT id, file_public_id, file_resource_type
+     FROM hoichan_messages
+     WHERE file_public_id IS NOT NULL
+       AND file_public_id <> ''
+       AND at < $1
+     LIMIT 200`,
+    [cutoff]
+  );
+
+  if (rows.length === 0) return;
+
+  const byType = new Map();
+  for (const r of rows) {
+    const t = r.file_resource_type || "image";
+    if (!byType.has(t)) byType.set(t, []);
+    byType.get(t).push(r.file_public_id);
+  }
+
+  for (const [resourceType, ids] of byType) {
+    try {
+      await cloudinary.api.delete_resources(ids, { resource_type: resourceType });
+    } catch (e) {
+      console.error("[hoichan] cleanup delete_resources error", e);
+    }
+  }
+
+  const ids = rows.map((r) => r.id);
+  await pool.query(
+    `UPDATE hoichan_messages
+     SET file_url = NULL,
+         file_public_id = NULL,
+         file_resource_type = NULL,
+         text = CASE WHEN text IS NULL OR text = '' THEN '[File đã bị xoá]' ELSE text END
+     WHERE id = ANY($1::text[])`,
+    [ids]
+  );
+}
+
+async function hoichanDeleteById(id) {
+  if (!pool) return null;
+  const { rows } = await pool.query(
+    `SELECT id, file_public_id, file_resource_type
+     FROM hoichan_messages
+     WHERE id = $1`,
+    [id]
+  );
+  if (rows.length === 0) return null;
+  const row = rows[0];
+
+  if (cloudinaryEnabled && row.file_public_id) {
+    try {
+      await cloudinary.uploader.destroy(row.file_public_id, {
+        resource_type: row.file_resource_type || "image"
+      });
+    } catch (e) {
+      console.error("[hoichan] delete file error", e);
+    }
+  }
+
+  await pool.query("DELETE FROM hoichan_messages WHERE id = $1", [id]);
+  return row;
+}
+
+async function uploadToCloudinary(dataUrl, name) {
+  if (!cloudinaryEnabled) {
+    const e = new Error("Cloudinary not configured");
+    e.status = 500;
+    throw e;
+  }
+  const result = await cloudinary.uploader.upload(dataUrl, {
+    folder: CLOUDINARY_FOLDER,
+    resource_type: "auto",
+    public_id: name ? name.replace(/\.[^.]+$/, "") : undefined
+  });
+  return {
+    url: result.secure_url || result.url,
+    public_id: result.public_id || "",
+    resource_type: result.resource_type || "image"
+  };
 }
 
 // ---------- HOI CHAN: WS logic ----------
@@ -697,11 +838,13 @@ hoichanWss.on("connection", (ws) => {
       if (!text) return;
       if (text.length > 2000) return;
 
+      const isAdmin = ws._hoichanUser.email === HOICHAN_ADMIN_EMAIL;
       const out = {
         type: "message",
         id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
         name: ws._hoichanUser.name,
         sub: ws._hoichanUser.sub,
+        is_admin: isAdmin,
         text,
         at: Date.now()
       };
@@ -709,8 +852,87 @@ hoichanWss.on("connection", (ws) => {
       hoichanInsert(out).catch((e) => console.error("[hoichan] insert error", e));
       broadcastHC(out);
     }
+
+    if (msg.type === "send_file") {
+      const nameRaw = String(msg.name || "file").trim();
+      const name = (nameRaw || "file").slice(0, 200);
+      const data = String(msg.data || "");
+      const parsed = parseDataUrl(data);
+      if (!parsed) return;
+
+      const declaredSize = Number(msg.size || 0);
+      const decodedSize = base64Bytes(parsed.b64);
+      const size = Number.isFinite(declaredSize) && declaredSize > 0
+        ? declaredSize
+        : decodedSize;
+
+      if (!size || size > MAX_HOICHAN_FILE_BYTES) return;
+      if (decodedSize && decodedSize > MAX_HOICHAN_FILE_BYTES) return;
+
+      const mime = String(parsed.mime || msg.mime || "application/octet-stream")
+        .trim()
+        .slice(0, 100);
+
+      let uploaded;
+      try {
+        uploaded = await uploadToCloudinary(data, name);
+      } catch (e) {
+        safeSendHC(ws, { type: "error", message: "Không upload được file" });
+        return;
+      }
+
+      const isAdmin = ws._hoichanUser.email === HOICHAN_ADMIN_EMAIL;
+      const out = {
+        type: "message",
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        name: ws._hoichanUser.name,
+        sub: ws._hoichanUser.sub,
+        is_admin: isAdmin,
+        text: "",
+        file_name: name,
+        file_mime: mime,
+        file_size: size,
+        file_url: uploaded.url,
+        file_public_id: uploaded.public_id,
+        file_resource_type: uploaded.resource_type,
+        at: Date.now()
+      };
+
+      hoichanInsert(out).catch((e) => console.error("[hoichan] insert error", e));
+      broadcastHC(out);
+    }
+
+    if (msg.type === "delete") {
+      const id = String(msg.id || "").trim();
+      if (!id) return;
+      if (ws._hoichanUser.email !== HOICHAN_ADMIN_EMAIL) return;
+
+      const deleted = await hoichanDeleteById(id);
+      if (!deleted) return;
+      broadcastHC({ type: "delete", id });
+    }
   });
 });
+
+// ====== HOI CHAN: weekly cleanup ======
+const cleanupEnabled =
+  String(process.env.HOICHAN_CLEANUP_ENABLED || "1").toLowerCase() !== "0";
+const cleanupIntervalHours = Math.max(
+  1,
+  Number(process.env.HOICHAN_CLEANUP_INTERVAL_HOURS || 24)
+);
+
+if (cleanupEnabled) {
+  setTimeout(() => {
+    hoichanCleanupOldFiles()
+      .catch((e) => console.error("[hoichan] cleanup error", e));
+  }, 15_000);
+
+  setInterval(() => {
+    hoichanCleanupOldFiles()
+      .catch((e) => console.error("[hoichan] cleanup error", e));
+  }, cleanupIntervalHours * 60 * 60 * 1000);
+}
 
 // ================== WS CŨ (BỆNH ÁN) - GIỮ NGUYÊN ==================
 // roomId -> { clients:Set<ws>, lastState:Object|null, locks:Map<string,{by:string,at:number}> }
