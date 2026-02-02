@@ -21,6 +21,17 @@ const GOOGLE_CLIENT_ID =
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 const HOICHAN_ADMIN_EMAIL = "minhtri16112002@gmail.com";
 
+function isHoichanAdminEmail(email) {
+  return String(email || "").toLowerCase() === HOICHAN_ADMIN_EMAIL;
+}
+
+function withAdTag(name, email) {
+  const base = String(name || "Unknown").trim() || "Unknown";
+  if (!isHoichanAdminEmail(email)) return base;
+  if (/\(ad\)\s*$/i.test(base)) return base;
+  return `${base} (ad)`;
+}
+
 // ====== CLOUDINARY (Hoichan uploads) ======
 const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || "";
 const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY || "";
@@ -645,7 +656,7 @@ async function hoichanLoadLatest(limit = 50) {
   if (!pool) return [];
   const n = Math.max(1, Math.min(Number(limit) || 50, 200));
   const { rows } = await pool.query(
-    `SELECT id, sub, name, is_admin, text, file_name, file_mime, file_size, file_url, file_public_id, file_resource_type, at
+    `SELECT id, sub, name, text, file_name, file_mime, file_size, file_url, file_public_id, file_resource_type, at
      FROM hoichan_messages
      ORDER BY at DESC
      LIMIT $1`,
@@ -657,10 +668,10 @@ async function hoichanLoadLatest(limit = 50) {
 async function hoichanInsert(m) {
   if (!pool) return;
   await pool.query(
-    `INSERT INTO hoichan_messages (id, sub, name, is_admin, text, file_name, file_mime, file_size, file_url, file_public_id, file_resource_type, at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+    `INSERT INTO hoichan_messages (id, sub, name, text, file_name, file_mime, file_size, file_url, file_public_id, file_resource_type, at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
      ON CONFLICT (id) DO NOTHING`,
-    [m.id, m.sub, m.name, m.is_admin, m.text, m.file_name, m.file_mime, m.file_size, m.file_url, m.file_public_id, m.file_resource_type, m.at]
+    [m.id, m.sub, m.name, m.text, m.file_name, m.file_mime, m.file_size, m.file_url, m.file_public_id, m.file_resource_type, m.at]
   );
 }
 
@@ -670,7 +681,9 @@ async function verifyGoogleIdToken(idToken) {
     audience: GOOGLE_CLIENT_ID
   });
   const p = ticket.getPayload();
-  return { name: p?.name || "Unknown", sub: p?.sub || "", email: p?.email || "" };
+  const email = String(p?.email || "");
+  const name = withAdTag(p?.name || "Unknown", email);
+  return { name, sub: p?.sub || "", email };
 }
 
 function safeSendHC(ws, obj) {
@@ -838,13 +851,11 @@ hoichanWss.on("connection", (ws) => {
       if (!text) return;
       if (text.length > 2000) return;
 
-      const isAdmin = ws._hoichanUser.email === HOICHAN_ADMIN_EMAIL;
       const out = {
         type: "message",
         id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
         name: ws._hoichanUser.name,
         sub: ws._hoichanUser.sub,
-        is_admin: isAdmin,
         text,
         at: Date.now()
       };
@@ -881,13 +892,11 @@ hoichanWss.on("connection", (ws) => {
         return;
       }
 
-      const isAdmin = ws._hoichanUser.email === HOICHAN_ADMIN_EMAIL;
       const out = {
         type: "message",
         id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
         name: ws._hoichanUser.name,
         sub: ws._hoichanUser.sub,
-        is_admin: isAdmin,
         text: "",
         file_name: name,
         file_mime: mime,
@@ -905,7 +914,7 @@ hoichanWss.on("connection", (ws) => {
     if (msg.type === "delete") {
       const id = String(msg.id || "").trim();
       if (!id) return;
-      if (ws._hoichanUser.email !== HOICHAN_ADMIN_EMAIL) return;
+      if (!isHoichanAdminEmail(ws._hoichanUser.email)) return;
 
       const deleted = await hoichanDeleteById(id);
       if (!deleted) return;
