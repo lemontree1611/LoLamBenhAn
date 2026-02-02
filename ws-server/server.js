@@ -25,13 +25,6 @@ function isHoichanAdminEmail(email) {
   return String(email || "").toLowerCase() === HOICHAN_ADMIN_EMAIL;
 }
 
-function withAdTag(name, email) {
-  const base = String(name || "Unknown").trim() || "Unknown";
-  if (!isHoichanAdminEmail(email)) return base;
-  if (/\(ad\)\s*$/i.test(base)) return base;
-  return `${base} (ad)`;
-}
-
 // ====== CLOUDINARY (Hoichan uploads) ======
 const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || "";
 const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY || "";
@@ -628,6 +621,7 @@ async function hoichanInitTable() {
       sub TEXT NOT NULL,
       name TEXT NOT NULL,
       is_admin BOOLEAN DEFAULT FALSE,
+      heart BOOLEAN DEFAULT FALSE,
       text TEXT NOT NULL,
       file_name TEXT,
       file_mime TEXT,
@@ -639,6 +633,7 @@ async function hoichanInitTable() {
     );
   `);
   await pool.query(`ALTER TABLE hoichan_messages ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;`);
+  await pool.query(`ALTER TABLE hoichan_messages ADD COLUMN IF NOT EXISTS heart BOOLEAN DEFAULT FALSE;`);
   await pool.query(`ALTER TABLE hoichan_messages ADD COLUMN IF NOT EXISTS file_name TEXT;`);
   await pool.query(`ALTER TABLE hoichan_messages ADD COLUMN IF NOT EXISTS file_mime TEXT;`);
   await pool.query(`ALTER TABLE hoichan_messages ADD COLUMN IF NOT EXISTS file_size INTEGER;`);
@@ -656,7 +651,7 @@ async function hoichanLoadLatest(limit = 50) {
   if (!pool) return [];
   const n = Math.max(1, Math.min(Number(limit) || 50, 200));
   const { rows } = await pool.query(
-    `SELECT id, sub, name, is_admin, text, file_name, file_mime, file_size, file_url, file_public_id, file_resource_type, at
+    `SELECT id, sub, name, heart, text, file_name, file_mime, file_size, file_url, file_public_id, file_resource_type, at
      FROM hoichan_messages
      ORDER BY at DESC
      LIMIT $1`,
@@ -668,10 +663,10 @@ async function hoichanLoadLatest(limit = 50) {
 async function hoichanInsert(m) {
   if (!pool) return;
   await pool.query(
-    `INSERT INTO hoichan_messages (id, sub, name, is_admin, text, file_name, file_mime, file_size, file_url, file_public_id, file_resource_type, at)
+    `INSERT INTO hoichan_messages (id, sub, name, heart, text, file_name, file_mime, file_size, file_url, file_public_id, file_resource_type, at)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
      ON CONFLICT (id) DO NOTHING`,
-    [m.id, m.sub, m.name, m.is_admin, m.text, m.file_name, m.file_mime, m.file_size, m.file_url, m.file_public_id, m.file_resource_type, m.at]
+    [m.id, m.sub, m.name, m.heart, m.text, m.file_name, m.file_mime, m.file_size, m.file_url, m.file_public_id, m.file_resource_type, m.at]
   );
 }
 
@@ -682,7 +677,7 @@ async function verifyGoogleIdToken(idToken) {
   });
   const p = ticket.getPayload();
   const email = String(p?.email || "");
-  const name = withAdTag(p?.name || "Unknown", email);
+  const name = p?.name || "Unknown";
   return { name, sub: p?.sub || "", email };
 }
 
@@ -785,6 +780,19 @@ async function hoichanDeleteById(id) {
   return row;
 }
 
+async function hoichanToggleHeart(id) {
+  if (!pool) return null;
+  const { rows } = await pool.query(
+    `UPDATE hoichan_messages
+     SET heart = NOT heart
+     WHERE id = $1
+     RETURNING id, heart`,
+    [id]
+  );
+  if (rows.length === 0) return null;
+  return rows[0];
+}
+
 async function uploadToCloudinary(dataUrl, name) {
   if (!cloudinaryEnabled) {
     const e = new Error("Cloudinary not configured");
@@ -851,13 +859,12 @@ hoichanWss.on("connection", (ws) => {
       if (!text) return;
       if (text.length > 2000) return;
 
-      const isAdmin = isHoichanAdminEmail(ws._hoichanUser.email);
       const out = {
         type: "message",
         id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
         name: ws._hoichanUser.name,
         sub: ws._hoichanUser.sub,
-        is_admin: isAdmin,
+        heart: false,
         text,
         at: Date.now()
       };
@@ -894,13 +901,12 @@ hoichanWss.on("connection", (ws) => {
         return;
       }
 
-      const isAdmin = isHoichanAdminEmail(ws._hoichanUser.email);
       const out = {
         type: "message",
         id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
         name: ws._hoichanUser.name,
         sub: ws._hoichanUser.sub,
-        is_admin: isAdmin,
+        heart: false,
         text: "",
         file_name: name,
         file_mime: mime,
@@ -923,6 +929,14 @@ hoichanWss.on("connection", (ws) => {
       const deleted = await hoichanDeleteById(id);
       if (!deleted) return;
       broadcastHC({ type: "delete", id });
+    }
+
+    if (msg.type === "heart") {
+      const id = String(msg.id || "").trim();
+      if (!id) return;
+      const updated = await hoichanToggleHeart(id);
+      if (!updated) return;
+      broadcastHC({ type: "heart", id: updated.id, heart: updated.heart });
     }
   });
 });
