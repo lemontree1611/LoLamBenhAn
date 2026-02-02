@@ -622,6 +622,7 @@ async function hoichanInitTable() {
       name TEXT NOT NULL,
       is_admin BOOLEAN DEFAULT FALSE,
       heart BOOLEAN DEFAULT FALSE,
+      heart_count INTEGER DEFAULT 0,
       text TEXT NOT NULL,
       file_name TEXT,
       file_mime TEXT,
@@ -634,6 +635,7 @@ async function hoichanInitTable() {
   `);
   await pool.query(`ALTER TABLE hoichan_messages ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;`);
   await pool.query(`ALTER TABLE hoichan_messages ADD COLUMN IF NOT EXISTS heart BOOLEAN DEFAULT FALSE;`);
+  await pool.query(`ALTER TABLE hoichan_messages ADD COLUMN IF NOT EXISTS heart_count INTEGER DEFAULT 0;`);
   await pool.query(`ALTER TABLE hoichan_messages ADD COLUMN IF NOT EXISTS file_name TEXT;`);
   await pool.query(`ALTER TABLE hoichan_messages ADD COLUMN IF NOT EXISTS file_mime TEXT;`);
   await pool.query(`ALTER TABLE hoichan_messages ADD COLUMN IF NOT EXISTS file_size INTEGER;`);
@@ -651,7 +653,7 @@ async function hoichanLoadLatest(limit = 50) {
   if (!pool) return [];
   const n = Math.max(1, Math.min(Number(limit) || 50, 200));
   const { rows } = await pool.query(
-    `SELECT id, sub, name, heart, text, file_name, file_mime, file_size, file_url, file_public_id, file_resource_type, at
+    `SELECT id, sub, name, heart, heart_count, text, file_name, file_mime, file_size, file_url, file_public_id, file_resource_type, at
      FROM hoichan_messages
      ORDER BY at DESC
      LIMIT $1`,
@@ -663,10 +665,10 @@ async function hoichanLoadLatest(limit = 50) {
 async function hoichanInsert(m) {
   if (!pool) return;
   await pool.query(
-    `INSERT INTO hoichan_messages (id, sub, name, heart, text, file_name, file_mime, file_size, file_url, file_public_id, file_resource_type, at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+    `INSERT INTO hoichan_messages (id, sub, name, heart, heart_count, text, file_name, file_mime, file_size, file_url, file_public_id, file_resource_type, at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
      ON CONFLICT (id) DO NOTHING`,
-    [m.id, m.sub, m.name, m.heart, m.text, m.file_name, m.file_mime, m.file_size, m.file_url, m.file_public_id, m.file_resource_type, m.at]
+    [m.id, m.sub, m.name, m.heart, m.heart_count, m.text, m.file_name, m.file_mime, m.file_size, m.file_url, m.file_public_id, m.file_resource_type, m.at]
   );
 }
 
@@ -780,14 +782,15 @@ async function hoichanDeleteById(id) {
   return row;
 }
 
-async function hoichanToggleHeart(id) {
+async function hoichanAddHeart(id, bySub) {
   if (!pool) return null;
   const { rows } = await pool.query(
     `UPDATE hoichan_messages
-     SET heart = NOT heart
+     SET heart_count = heart_count + 1
      WHERE id = $1
-     RETURNING id, heart`,
-    [id]
+       AND sub <> $2
+     RETURNING id, heart_count`,
+    [id, bySub]
   );
   if (rows.length === 0) return null;
   return rows[0];
@@ -865,6 +868,7 @@ hoichanWss.on("connection", (ws) => {
         name: ws._hoichanUser.name,
         sub: ws._hoichanUser.sub,
         heart: false,
+        heart_count: 0,
         text,
         at: Date.now()
       };
@@ -907,6 +911,7 @@ hoichanWss.on("connection", (ws) => {
         name: ws._hoichanUser.name,
         sub: ws._hoichanUser.sub,
         heart: false,
+        heart_count: 0,
         text: "",
         file_name: name,
         file_mime: mime,
@@ -934,9 +939,9 @@ hoichanWss.on("connection", (ws) => {
     if (msg.type === "heart") {
       const id = String(msg.id || "").trim();
       if (!id) return;
-      const updated = await hoichanToggleHeart(id);
+      const updated = await hoichanAddHeart(id, ws._hoichanUser.sub);
       if (!updated) return;
-      broadcastHC({ type: "heart", id: updated.id, heart: updated.heart });
+      broadcastHC({ type: "heart", id: updated.id, heart_count: updated.heart_count });
     }
   });
 });
