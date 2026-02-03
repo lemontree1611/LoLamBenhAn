@@ -827,6 +827,26 @@ function _setTextareaValue(el, value) {
   return true;
 }
 
+function _setDiagPlaceholders(loading) {
+  const soEl = document.getElementById("chandoanso");
+  const pdEl = document.getElementById("chandoanpd");
+  const msg = "Đợi xíu, bot LÒ sẽ chẩn đoán giúp bạn...";
+
+  [soEl, pdEl].forEach((el) => {
+    if (!el) return;
+    if (loading) {
+      if (el.getAttribute("data-old-placeholder") === null) {
+        el.setAttribute("data-old-placeholder", el.placeholder || "");
+      }
+      el.placeholder = msg;
+    } else {
+      const old = el.getAttribute("data-old-placeholder");
+      if (old !== null) el.placeholder = old;
+      el.removeAttribute("data-old-placeholder");
+    }
+  });
+}
+
 function scheduleAutoDiagnosis(immediate = false) {
   const tomtatEl = document.getElementById("tomtat");
   if (!tomtatEl) return;
@@ -854,6 +874,8 @@ async function runAutoDiagnosis(tomtat) {
   lastTomtatRequested = tomtat;
 
   try {
+    _setDiagPlaceholders(true);
+
     const messages = [
       { role: "system", content: DIAG_SYSTEM_PROMPT },
       { role: "user", content: `Tóm tắt bệnh án:\n${tomtat}\n\nTrả về JSON theo schema.` }
@@ -901,6 +923,8 @@ async function runAutoDiagnosis(tomtat) {
     if (canSetPd) _setTextareaValue(pdEl, parsed.phanBiet.slice(0, 2).join("\n"));
   } catch (err) {
     console.warn("Auto diagnosis failed:", err);
+  } finally {
+    _setDiagPlaceholders(false);
   }
 }
 
