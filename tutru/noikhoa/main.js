@@ -781,6 +781,25 @@ function _splitDiagList(text) {
     .filter(Boolean);
 }
 
+function _formatCanLamSang(val) {
+  if (!val) return "";
+  if (typeof val === "string") return val.trim();
+
+  if (typeof val === "object") {
+    const a = val.a ?? val.chandoan ?? val.diagnosis ?? "";
+    const b = val.b ?? val.timnguyennhan ?? val.nguyennhan ?? val.cause ?? "";
+    const c = val.c ?? val.hotro ?? val.dieutri ?? val.support ?? "";
+    const lines = [
+      a ? `a) Chẩn đoán: ${String(a).trim()}` : "a) Chẩn đoán:",
+      b ? `b) Tìm nguyên nhân: ${String(b).trim()}` : "b) Tìm nguyên nhân:",
+      c ? `c) Hỗ trợ điều trị: ${String(c).trim()}` : "c) Hỗ trợ điều trị:",
+    ];
+    return lines.join("\n");
+  }
+
+  return String(val).trim();
+}
+
 function _parseDiagnosisReply(reply) {
   const json = _extractJsonFromText(reply);
   if (json) {
@@ -798,14 +817,14 @@ function _parseDiagnosisReply(reply) {
     if (!Array.isArray(pd)) pd = [];
 
     const phanBiet = pd.map(_cleanDiagLine).filter(Boolean).slice(0, 2);
-    const canLamSang = String(
+    const canLamSang = _formatCanLamSang(
       json.canlamsang ??
       json.can_lam_sang ??
       json.cls ??
       json.ccls ??
       json.canlamsang_de_nghi ??
       ""
-    ).trim();
+    );
     return { soBo: so, phanBiet, canLamSang };
   }
 
