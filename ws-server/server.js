@@ -192,6 +192,7 @@ app.post("/comments", async (req, res) => {
 
     const LIMIT = 5;
     const WINDOW_DAYS = 7;
+    const COOLDOWN_SECONDS = 30;
 
     if (!username) return res.status(400).json({ error: "Vui lòng nhập nickname" });
     if (!text) return res.status(400).json({ error: "Vui lòng nhập nội dung góp ý" });
@@ -209,6 +210,24 @@ app.post("/comments", async (req, res) => {
         error:
           "Bạn đã gửi quá 5 góp ý trong 7 ngày qua. Vui lòng thử lại sau."
       });
+    }
+
+    const { rows: lastRows } = await pool.query(
+      `select created_at
+       from comments
+       where ip = $1
+       order by created_at desc
+       limit 1`,
+      [ip]
+    );
+
+    if (lastRows.length) {
+      const lastAt = new Date(lastRows[0].created_at).getTime();
+      if (Number.isFinite(lastAt) && Date.now() - lastAt < COOLDOWN_SECONDS * 1000) {
+        return res.status(429).json({
+          error: "Bạn đang góp ý quá nhanh (spam)"
+        });
+      }
     }
 
     const { rows } = await pool.query(

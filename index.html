@@ -281,7 +281,7 @@
                     await loadComments();
                 } else if (response.status === 429) {
                     if (limitNote) {
-                        limitNote.textContent = 'Bạn đã góp ý quá nhiều';
+                        limitNote.textContent = data.error || 'Bạn đã góp ý quá nhiều';
                     } else {
                         alert(data.error || 'Bạn đã góp ý quá nhiều');
                     }
