@@ -715,6 +715,204 @@ DỮ LIỆU TỪ FORM (tham khảo khi trả lời):
 `.trim();
 }
 
+// ===============================
+//  AUTO DIAGNOSIS FROM SUMMARY
+//  - Sử dụng tóm tắt bệnh án (tomtat)
+//  - Điền 1 chẩn đoán sơ bộ + 2 chẩn đoán phân biệt
+// ===============================
+const DIAG_API_URL = CHAT_API_URL;
+const DIAG_DEBOUNCE_MS = 1200;
+const DIAG_MIN_LEN = 10;
+
+const DIAG_SYSTEM_PROMPT = `
+Bạn là bác sĩ nội khoa hỗ trợ soạn bệnh án.
+Từ tóm tắt bệnh án, hãy đề xuất:
+1) 1 chẩn đoán sơ bộ có khả năng cao nhất
+2) 2 chẩn đoán phân biệt có khả năng thấp hơn
+
+Mỗi chẩn đoán phải đúng định dạng:
+"Chẩn đoán đầy đủ + mức độ + nguyên nhân (nếu có) / tiền căn bệnh nền".
+
+Chỉ trả về JSON hợp lệ, không thêm giải thích.
+Schema:
+{
+  "chandoan_so": "string",
+  "chandoan_phanbiet": ["string", "string"]
+}
+`.trim();
+
+let autoDiagTimer = 0;
+let autoDiagSeq = 0;
+let lastTomtatRequested = "";
+
+function _extractJsonFromText(text) {
+  if (!text) return null;
+  const trimmed = String(text).trim();
+
+  try { return JSON.parse(trimmed); } catch (_) {}
+
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced && fenced[1]) {
+    try { return JSON.parse(fenced[1].trim()); } catch (_) {}
+  }
+
+  const first = trimmed.indexOf("{");
+  const last = trimmed.lastIndexOf("}");
+  if (first >= 0 && last > first) {
+    const slice = trimmed.slice(first, last + 1);
+    try { return JSON.parse(slice); } catch (_) {}
+  }
+  return null;
+}
+
+function _cleanDiagLine(s) {
+  return String(s || "")
+    .replace(/^\s*[-–—•\d\)\.]+\s*/, "")
+    .trim();
+}
+
+function _splitDiagList(text) {
+  return String(text || "")
+    .split(/\r?\n|;|•|\u2022|\d+\)|\d+\./)
+    .map(_cleanDiagLine)
+    .filter(Boolean);
+}
+
+function _parseDiagnosisReply(reply) {
+  const json = _extractJsonFromText(reply);
+  if (json) {
+    const so = String(
+      json.chandoan_so ??
+      json.chandoanSo ??
+      json.so_bo ??
+      json.sobo ??
+      json.primary ??
+      ""
+    ).trim();
+
+    let pd = json.chandoan_phanbiet ?? json.phanbiet ?? json.phan_biet ?? json.differentials ?? [];
+    if (typeof pd === "string") pd = _splitDiagList(pd);
+    if (!Array.isArray(pd)) pd = [];
+
+    const phanBiet = pd.map(_cleanDiagLine).filter(Boolean).slice(0, 2);
+    return { soBo: so, phanBiet };
+  }
+
+  let soBo = "";
+  let phanBiet = [];
+
+  const soMatch = String(reply || "").match(/chẩn\s*đoán\s*sơ\s*bộ\s*:?\s*(.+)/i);
+  if (soMatch && soMatch[1]) soBo = soMatch[1].trim();
+
+  const pdMatch = String(reply || "").match(/chẩn\s*đoán\s*phân\s*biệt\s*:?\s*([\s\S]*)/i);
+  if (pdMatch && pdMatch[1]) phanBiet = _splitDiagList(pdMatch[1]);
+
+  if (!soBo || phanBiet.length === 0) {
+    const lines = _splitDiagList(reply);
+    if (!soBo && lines.length) soBo = lines[0];
+    if (phanBiet.length === 0 && lines.length > 1) phanBiet = lines.slice(1);
+  }
+
+  return {
+    soBo: (soBo || "").trim(),
+    phanBiet: phanBiet.map(_cleanDiagLine).filter(Boolean).slice(0, 2),
+  };
+}
+
+function _setTextareaValue(el, value) {
+  if (!el || el.disabled) return false;
+  el.value = value;
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
+}
+
+function scheduleAutoDiagnosis(immediate = false) {
+  const tomtatEl = document.getElementById("tomtat");
+  if (!tomtatEl) return;
+
+  const tomtat = tomtatEl.value.trim();
+  if (!tomtat || tomtat.length < DIAG_MIN_LEN) return;
+
+  // nếu không đổi tóm tắt thì không gọi lại
+  if (tomtat === lastTomtatRequested && !autoDiagTimer) return;
+
+  if (autoDiagTimer) clearTimeout(autoDiagTimer);
+  autoDiagTimer = setTimeout(() => {
+    autoDiagTimer = 0;
+    runAutoDiagnosis(tomtat);
+  }, immediate ? 0 : DIAG_DEBOUNCE_MS);
+}
+
+async function runAutoDiagnosis(tomtat) {
+  const soEl = document.getElementById("chandoanso");
+  const pdEl = document.getElementById("chandoanpd");
+  if (!soEl || !pdEl) return;
+
+  const before = { so: soEl.value, pd: pdEl.value };
+  const requestId = ++autoDiagSeq;
+  lastTomtatRequested = tomtat;
+
+  try {
+    const messages = [
+      { role: "system", content: DIAG_SYSTEM_PROMPT },
+      { role: "user", content: `Tóm tắt bệnh án:\n${tomtat}\n\nTrả về JSON theo schema.` }
+    ];
+
+    const response = await fetch(DIAG_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages })
+    });
+
+    const raw = await response.text();
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${raw.slice(0, 200)}`);
+
+    let data;
+    try { data = JSON.parse(raw); } catch (_) {
+      throw new Error(`Server không trả JSON. Nhận: ${raw.slice(0, 200)}`);
+    }
+
+    const reply = (data && typeof data.answer === "string" && data.answer.trim())
+      ? data.answer.trim()
+      : "";
+
+    if (!reply) return;
+
+    // nếu có request mới hơn thì bỏ qua
+    if (requestId !== autoDiagSeq) return;
+
+    // nếu tóm tắt đã đổi trong lúc chưa xong thì bỏ qua
+    const curTomtat = (document.getElementById("tomtat")?.value || "").trim();
+    if (curTomtat && curTomtat !== tomtat) return;
+
+    const parsed = _parseDiagnosisReply(reply);
+    if (!parsed || (!parsed.soBo && (!parsed.phanBiet || parsed.phanBiet.length === 0))) return;
+
+    const canSetSo = parsed.soBo
+      && document.activeElement !== soEl
+      && (soEl.value === before.so || !soEl.value.trim());
+
+    const canSetPd = parsed.phanBiet && parsed.phanBiet.length
+      && document.activeElement !== pdEl
+      && (pdEl.value === before.pd || !pdEl.value.trim());
+
+    if (canSetSo) _setTextareaValue(soEl, parsed.soBo);
+    if (canSetPd) _setTextareaValue(pdEl, parsed.phanBiet.slice(0, 2).join("\n"));
+  } catch (err) {
+    console.warn("Auto diagnosis failed:", err);
+  }
+}
+
+// Chỉ auto khi người dùng rời ô tóm tắt (blur)
+const tomtatEl = document.getElementById("tomtat");
+if (tomtatEl) {
+  tomtatEl.addEventListener("blur", (e) => {
+    if (e && e.isTrusted === false) return;
+    scheduleAutoDiagnosis(true);
+  });
+}
+
 async function sendMessage() {
   if (!chatInput || !chatMessages || !chatSend) return;
 
