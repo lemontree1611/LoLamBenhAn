@@ -724,23 +724,16 @@ const DIAG_SYSTEM_PROMPT = `
 Bạn là bác sĩ nội khoa hỗ trợ soạn bệnh án.
 Từ tóm tắt bệnh án, hãy đề xuất:
 1) 1 chẩn đoán sơ bộ có khả năng cao nhất
-2) 2 chẩn đoán phân biệt có khả năng thấp hơn
-3) Danh sách cận lâm sàng cần làm để phân biệt, tìm chẩn đoán đúng hoặc theo dõi điều trị
+2) 2 chẩn đoán phân biệt có khả năng thấp hơn (khả năng thứ 2 và 3)
 
 Mỗi chẩn đoán phải đúng định dạng:
-"Chẩn đoán đầy đủ + mức độ + nguyên nhân (nếu có) / tiền căn bệnh nền".
-
-Phần cận lâm sàng phải đúng định dạng và CÓ NỘI DUNG theo 3 dòng.
-a) Chẩn đoán: ...
-b) Tìm nguyên nhân: ...
-c) Hỗ trợ điều trị: ...
+"Chẩn đoán chính + Mức độ + nguyên nhân + Yếu tố thúc đẩy (nếu có) / tiền sử bệnh nền".
 
 Chỉ trả về JSON hợp lệ, không thêm giải thích.
 Schema:
 {
   "chandoan_so": "string",
-  "chandoan_phanbiet": ["string", "string"],
-  "canlamsang": "string"
+  "chandoan_phanbiet": ["string", "string"]
 }
 `.trim();
 
@@ -817,15 +810,7 @@ function _parseDiagnosisReply(reply) {
     if (!Array.isArray(pd)) pd = [];
 
     const phanBiet = pd.map(_cleanDiagLine).filter(Boolean).slice(0, 2);
-    const canLamSang = _formatCanLamSang(
-      json.canlamsang ??
-      json.can_lam_sang ??
-      json.cls ??
-      json.ccls ??
-      json.canlamsang_de_nghi ??
-      ""
-    );
-    return { soBo: so, phanBiet, canLamSang };
+    return { soBo: so, phanBiet, canLamSang: "" };
   }
 
   let soBo = "";
@@ -913,8 +898,7 @@ function scheduleAutoDiagnosis(immediate = false) {
 async function runAutoDiagnosis(tomtat) {
   const soEl = document.getElementById("chandoanso");
   const pdEl = document.getElementById("chandoanpd");
-  const clsEl = document.getElementById("cls_canlamsang");
-  if (!soEl || !pdEl || !clsEl) return;
+  if (!soEl || !pdEl) return;
 
   const before = { so: soEl.value, pd: pdEl.value };
   const requestId = ++autoDiagSeq;
@@ -956,7 +940,7 @@ async function runAutoDiagnosis(tomtat) {
     if (curTomtat && curTomtat !== tomtat) return;
 
     const parsed = _parseDiagnosisReply(reply);
-    if (!parsed || (!parsed.soBo && (!parsed.phanBiet || parsed.phanBiet.length === 0) && !parsed.canLamSang)) return;
+    if (!parsed || (!parsed.soBo && (!parsed.phanBiet || parsed.phanBiet.length === 0))) return;
 
     const canSetSo = parsed.soBo
       && document.activeElement !== soEl
@@ -966,13 +950,8 @@ async function runAutoDiagnosis(tomtat) {
       && document.activeElement !== pdEl
       && (pdEl.value === before.pd || !pdEl.value.trim());
 
-    const canSetCls = parsed.canLamSang
-      && document.activeElement !== clsEl
-      && !clsEl.value.trim();
-
     if (canSetSo) _setTextareaValue(soEl, parsed.soBo);
     if (canSetPd) _setTextareaValue(pdEl, parsed.phanBiet.slice(0, 2).join("\n"));
-    if (canSetCls) _setTextareaValue(clsEl, parsed.canLamSang);
   } catch (err) {
     console.warn("Auto diagnosis failed:", err);
   } finally {
@@ -986,6 +965,72 @@ if (tomtatEl) {
   tomtatEl.addEventListener("blur", (e) => {
     if (e && e.isTrusted === false) return;
     scheduleAutoDiagnosis(true);
+  });
+}
+
+// ===============================
+//  CLS AI SUPPORT (button)
+// ===============================
+const clsBtn = document.getElementById("btn-cls-ai");
+if (clsBtn) {
+  clsBtn.addEventListener("click", async () => {
+    const soEl = document.getElementById("chandoanso");
+    const pdEl = document.getElementById("chandoanpd");
+    const clsEl = document.getElementById("cls_canlamsang");
+    if (!soEl || !pdEl || !clsEl) return;
+
+    const so = soEl.value.trim();
+    const pd = pdEl.value.trim();
+    if (!so && !pd) return;
+
+    try {
+      _setDiagPlaceholders(true);
+
+      const CLS_SYSTEM_PROMPT = `
+Bạn là bác sĩ nội khoa hỗ trợ soạn bệnh án.
+Dựa trên chẩn đoán sơ bộ và chẩn đoán phân biệt, hãy đề xuất cận lâm sàng hợp lý,
+sắp xếp theo đúng định dạng:
+- Chẩn đoán: (CLS hỗ trợ chẩn đoán)
+- Tìm nguyên nhân: (CLS để tìm nguyên nhân nếu có)
+- Hỗ trợ điều trị: (CLS hỗ trợ điều trị nếu có)
+
+Chỉ trả về 3 dòng đúng định dạng trên, mỗi dòng là danh sách CLS, ngăn cách bằng dấu ;
+Không thêm giải thích.
+`.trim();
+
+      const messages = [
+        { role: "system", content: CLS_SYSTEM_PROMPT },
+        { role: "user", content: `Chẩn đoán sơ bộ: ${so || "(chưa có)"}\nChẩn đoán phân biệt:\n${pd || "(chưa có)"}` }
+      ];
+
+      const response = await fetch(DIAG_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages })
+      });
+
+      const raw = await response.text();
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${raw.slice(0, 200)}`);
+
+      let data;
+      try { data = JSON.parse(raw); } catch (_) {
+        throw new Error(`Server không trả JSON. Nhận: ${raw.slice(0, 200)}`);
+      }
+
+      const reply = (data && typeof data.answer === "string" && data.answer.trim())
+        ? data.answer.trim()
+        : "";
+
+      if (!reply) return;
+
+      if (document.activeElement !== clsEl) {
+        _setTextareaValue(clsEl, reply);
+      }
+    } catch (err) {
+      console.warn("CLS AI support failed:", err);
+    } finally {
+      _setDiagPlaceholders(false);
+    }
   });
 }
 
