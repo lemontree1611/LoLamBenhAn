@@ -730,10 +730,10 @@ Từ tóm tắt bệnh án, hãy đề xuất:
 Mỗi chẩn đoán phải đúng định dạng:
 "Chẩn đoán đầy đủ + mức độ + nguyên nhân (nếu có) / tiền căn bệnh nền".
 
-Phần cận lâm sàng phải đúng định dạng:
-a) Chẩn đoán:
-b) Tìm nguyên nhân:
-c) Hỗ trợ điều trị:
+Phần cận lâm sàng phải đúng định dạng và CÓ NỘI DUNG theo 3 dòng:
+a) Chẩn đoán: ...
+b) Tìm nguyên nhân: ...
+c) Hỗ trợ điều trị: ...
 
 Chỉ trả về JSON hợp lệ, không thêm giải thích.
 Schema:
