@@ -78,6 +78,34 @@ app.use(
 
 app.use(express.json({ limit: "1mb" }));
 
+// ====== IP BLOCKLIST ======
+function getClientIp(req) {
+  const xf = req.headers["x-forwarded-for"];
+  if (xf) return String(xf).split(",")[0].trim();
+  return req.ip || req.socket?.remoteAddress || "unknown";
+}
+
+function parseBlockedIps() {
+  return String(process.env.BLOCKED_IPS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function isBlockedIp(ip) {
+  const list = parseBlockedIps();
+  if (!list.length) return false;
+  return list.includes(ip);
+}
+
+app.use((req, res, next) => {
+  const ip = getClientIp(req);
+  if (isBlockedIp(ip)) {
+    return res.status(403).json({ error: "IP blocked" });
+  }
+  return next();
+});
+
 app.use((err, req, res, next) => {
   if (err && String(err.message || "").includes("Not allowed by CORS")) {
     return res
@@ -155,12 +183,6 @@ async function commentsInitTable() {
     `CREATE INDEX IF NOT EXISTS idx_comments_ip_created_at
      ON comments (ip, created_at DESC);`
   );
-}
-
-function getClientIp(req) {
-  const xf = req.headers["x-forwarded-for"];
-  if (xf) return String(xf).split(",")[0].trim();
-  return req.ip || req.socket?.remoteAddress || "unknown";
 }
 
 // ====== COMMENTS API ======
