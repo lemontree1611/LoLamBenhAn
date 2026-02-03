@@ -167,8 +167,7 @@ function getFormData() {
     tomtat: getField('tomtat'),
     chandoanso: getField('chandoanso'),
     chandoanpd: getField('chandoanpd'),
-    cls_thuongquy: getField('cls_thuongquy'),
-    cls_chuandoan: getField('cls_chuandoan'),
+    cls_canlamsang: getField('cls_canlamsang'),
     ketqua: getField('ketqua'),
     chandoanxacdinh: getField('chandoanxacdinh'),
     huongdieutri: getField('huongdieutri'),
@@ -267,9 +266,7 @@ function buildHTMLDoc() {
   <p><b>3. Chẩn đoán phân biệt:</b><br/>${nl2br(data.chandoanpd)}</p>
 
   <p><b>4. Đề nghị cận lâm sàng và kết quả:</b></p>
-  <p><b>a) Đề nghị cận lâm sàng:</b></p>
-  <p>- Thường quy: ${nl2br(data.cls_thuongquy)}</p>
-  <p>- Chẩn đoán: ${nl2br(data.cls_chuandoan)}</p>
+  <p><b>a) Đề nghị cận lâm sàng:</b><br/>${nl2br(data.cls_canlamsang)}</p>
   <p><b>b) Kết quả:</b><br/>${nl2br(data.ketqua)}</p>
 
   <p><b>5. Chẩn đoán xác định:</b><br/>${nl2br(data.chandoanxacdinh)}</p>
@@ -511,8 +508,7 @@ async function generateDocx() {
 
           paraHeading("4. ", "Đề nghị cận lâm sàng và kết quả:", { spacing: { ...basePara.spacing, before: 60 } }),
           paraHeading("a) ", "Đề nghị cận lâm sàng:", { spacing: { ...basePara.spacing, before: 20 } }),
-          para(`- Thường quy: ${data.cls_thuongquy}`),
-          para(`- Chẩn đoán: ${data.cls_chuandoan}`),
+          ...textToParagraphs(data.cls_canlamsang),
 
           paraHeading("b) ", "Kết quả:", { spacing: { ...basePara.spacing, before: 40, after: 0 } }),
           ...textToParagraphs(data.ketqua),
@@ -729,15 +725,22 @@ Bạn là bác sĩ nội khoa hỗ trợ soạn bệnh án.
 Từ tóm tắt bệnh án, hãy đề xuất:
 1) 1 chẩn đoán sơ bộ có khả năng cao nhất
 2) 2 chẩn đoán phân biệt có khả năng thấp hơn
+3) Danh sách cận lâm sàng cần làm để phân biệt, tìm chẩn đoán đúng hoặc theo dõi điều trị
 
 Mỗi chẩn đoán phải đúng định dạng:
 "Chẩn đoán đầy đủ + mức độ + nguyên nhân (nếu có) / tiền căn bệnh nền".
+
+Phần cận lâm sàng phải đúng định dạng:
+a) Chẩn đoán:
+b) Tìm nguyên nhân:
+c) Hỗ trợ điều trị:
 
 Chỉ trả về JSON hợp lệ, không thêm giải thích.
 Schema:
 {
   "chandoan_so": "string",
-  "chandoan_phanbiet": ["string", "string"]
+  "chandoan_phanbiet": ["string", "string"],
+  "canlamsang": "string"
 }
 `.trim();
 
@@ -795,7 +798,15 @@ function _parseDiagnosisReply(reply) {
     if (!Array.isArray(pd)) pd = [];
 
     const phanBiet = pd.map(_cleanDiagLine).filter(Boolean).slice(0, 2);
-    return { soBo: so, phanBiet };
+    const canLamSang = String(
+      json.canlamsang ??
+      json.can_lam_sang ??
+      json.cls ??
+      json.ccls ??
+      json.canlamsang_de_nghi ??
+      ""
+    ).trim();
+    return { soBo: so, phanBiet, canLamSang };
   }
 
   let soBo = "";
@@ -816,6 +827,7 @@ function _parseDiagnosisReply(reply) {
   return {
     soBo: (soBo || "").trim(),
     phanBiet: phanBiet.map(_cleanDiagLine).filter(Boolean).slice(0, 2),
+    canLamSang: "",
   };
 }
 
@@ -830,7 +842,9 @@ function _setTextareaValue(el, value) {
 function _setDiagPlaceholders(loading) {
   const soEl = document.getElementById("chandoanso");
   const pdEl = document.getElementById("chandoanpd");
+  const clsEl = document.getElementById("cls_canlamsang");
   const msg = "Đợi xíu, bot LÒ sẽ chẩn đoán giúp bạn...";
+  const clsMsg = "Đợi xíu, để LÒ đề nghị cận lâm sàng cho...";
 
   [soEl, pdEl].forEach((el) => {
     if (!el) return;
@@ -845,6 +859,18 @@ function _setDiagPlaceholders(loading) {
       el.removeAttribute("data-old-placeholder");
     }
   });
+
+  if (!clsEl) return;
+  if (loading) {
+    if (clsEl.getAttribute("data-old-placeholder") === null) {
+      clsEl.setAttribute("data-old-placeholder", clsEl.placeholder || "");
+    }
+    clsEl.placeholder = clsMsg;
+  } else {
+    const old = clsEl.getAttribute("data-old-placeholder");
+    if (old !== null) clsEl.placeholder = old;
+    clsEl.removeAttribute("data-old-placeholder");
+  }
 }
 
 function scheduleAutoDiagnosis(immediate = false) {
@@ -867,7 +893,8 @@ function scheduleAutoDiagnosis(immediate = false) {
 async function runAutoDiagnosis(tomtat) {
   const soEl = document.getElementById("chandoanso");
   const pdEl = document.getElementById("chandoanpd");
-  if (!soEl || !pdEl) return;
+  const clsEl = document.getElementById("cls_canlamsang");
+  if (!soEl || !pdEl || !clsEl) return;
 
   const before = { so: soEl.value, pd: pdEl.value };
   const requestId = ++autoDiagSeq;
@@ -909,7 +936,7 @@ async function runAutoDiagnosis(tomtat) {
     if (curTomtat && curTomtat !== tomtat) return;
 
     const parsed = _parseDiagnosisReply(reply);
-    if (!parsed || (!parsed.soBo && (!parsed.phanBiet || parsed.phanBiet.length === 0))) return;
+    if (!parsed || (!parsed.soBo && (!parsed.phanBiet || parsed.phanBiet.length === 0) && !parsed.canLamSang)) return;
 
     const canSetSo = parsed.soBo
       && document.activeElement !== soEl
@@ -919,8 +946,13 @@ async function runAutoDiagnosis(tomtat) {
       && document.activeElement !== pdEl
       && (pdEl.value === before.pd || !pdEl.value.trim());
 
+    const canSetCls = parsed.canLamSang
+      && document.activeElement !== clsEl
+      && !clsEl.value.trim();
+
     if (canSetSo) _setTextareaValue(soEl, parsed.soBo);
     if (canSetPd) _setTextareaValue(pdEl, parsed.phanBiet.slice(0, 2).join("\n"));
+    if (canSetCls) _setTextareaValue(clsEl, parsed.canLamSang);
   } catch (err) {
     console.warn("Auto diagnosis failed:", err);
   } finally {
