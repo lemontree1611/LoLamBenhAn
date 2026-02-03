@@ -869,6 +869,7 @@ function _setDiagPlaceholders(loading) {
   } else {
     const old = clsEl.getAttribute("data-old-placeholder");
     if (old !== null) clsEl.placeholder = old;
+    else clsEl.placeholder = "";
     clsEl.removeAttribute("data-old-placeholder");
   }
 }
