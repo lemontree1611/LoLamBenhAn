@@ -730,7 +730,9 @@ Từ tóm tắt bệnh án, hãy đề xuất:
 Mỗi chẩn đoán phải đúng định dạng:
 "Chẩn đoán đầy đủ + mức độ + nguyên nhân (nếu có) / tiền căn bệnh nền".
 
-Phần cận lâm sàng phải đúng định dạng và CÓ NỘI DUNG theo 3 dòng:
+Phần cận lâm sàng phải đúng định dạng và CÓ NỘI DUNG theo 3 dòng.
+Chỉ liệt kê TÊN cận lâm sàng, không mô tả sau dấu ":".
+Ví dụ: "a) Chẩn đoán: X-quang ngực thẳng; CTM; CRP"
 a) Chẩn đoán: ...
 b) Tìm nguyên nhân: ...
 c) Hỗ trợ điều trị: ...
@@ -800,6 +802,19 @@ function _formatCanLamSang(val) {
   return String(val).trim();
 }
 
+function _stripClsDescriptions(text) {
+  const lines = String(text || "").split(/\r?\n/);
+  const out = lines.map((line) => {
+    const m = line.match(/^\s*([a-cA-C])\)\s*([^:]*):\s*(.*)$/);
+    if (!m) return line.trim();
+    const label = m[2].trim() || (m[1].toLowerCase() === "a" ? "Chẩn đoán" : m[1].toLowerCase() === "b" ? "Tìm nguyên nhân" : "Hỗ trợ điều trị");
+    const names = m[3].split(/\s*[.;]\s*/).filter(Boolean);
+    if (names.length === 0) return `${m[1].toLowerCase()}) ${label}:`;
+    return `${m[1].toLowerCase()}) ${label}: ${names.join("; ")}`;
+  });
+  return out.join("\n").trim();
+}
+
 function _parseDiagnosisReply(reply) {
   const json = _extractJsonFromText(reply);
   if (json) {
@@ -817,14 +832,14 @@ function _parseDiagnosisReply(reply) {
     if (!Array.isArray(pd)) pd = [];
 
     const phanBiet = pd.map(_cleanDiagLine).filter(Boolean).slice(0, 2);
-    const canLamSang = _formatCanLamSang(
+    const canLamSang = _stripClsDescriptions(_formatCanLamSang(
       json.canlamsang ??
       json.can_lam_sang ??
       json.cls ??
       json.ccls ??
       json.canlamsang_de_nghi ??
       ""
-    );
+    ));
     return { soBo: so, phanBiet, canLamSang };
   }
 
