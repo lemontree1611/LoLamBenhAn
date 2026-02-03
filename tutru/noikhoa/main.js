@@ -726,8 +726,10 @@ Từ tóm tắt bệnh án, hãy đề xuất:
 1) 1 chẩn đoán sơ bộ có khả năng cao nhất
 2) 2 chẩn đoán phân biệt có khả năng thấp hơn (khả năng thứ 2 và 3)
 
-Mỗi chẩn đoán phải đúng định dạng:
-"Chẩn đoán chính + Mức độ + nguyên nhân + Yếu tố thúc đẩy (nếu có) / tiền sử bệnh nền".
+Mỗi chẩn đoán phải là 1 câu tự nhiên, KHÔNG dùng dấu "+".
+Giữ dấu "/" trước phần tiền sử bệnh nền.
+Ví dụ đúng:
+"Viêm phổi cộng đồng mức độ trung bình do vi khuẩn, có yếu tố thúc đẩy hút thuốc lá / tiền sử COPD."
 
 Chỉ trả về JSON hợp lệ, không thêm giải thích.
 Schema:
