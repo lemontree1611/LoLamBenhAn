@@ -46,6 +46,7 @@ if (cloudinaryEnabled) {
 
 // ================== EXPRESS (HTTP API) ==================
 const app = express();
+app.set("trust proxy", true);
 
 // ====== CORS ======
 const defaultCorsOrigins = ["https://lolambenhan.vercel.app"];
@@ -146,6 +147,22 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+// ====== COMMENTS: schema + helpers ======
+async function commentsInitTable() {
+  if (!pool) return;
+  await pool.query(`ALTER TABLE comments ADD COLUMN IF NOT EXISTS ip TEXT;`);
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_comments_ip_created_at
+     ON comments (ip, created_at DESC);`
+  );
+}
+
+function getClientIp(req) {
+  const xf = req.headers["x-forwarded-for"];
+  if (xf) return String(xf).split(",")[0].trim();
+  return req.ip || req.socket?.remoteAddress || "unknown";
+}
+
 // ====== COMMENTS API ======
 app.get("/comments", async (req, res) => {
   if (!pool) return res.status(500).json({ error: "DB not configured" });
@@ -171,16 +188,35 @@ app.post("/comments", async (req, res) => {
   try {
     const username = String(req.body?.username || "").trim();
     const text = String(req.body?.text || "").trim();
+    const ip = getClientIp(req);
+
+    const LIMIT = 5;
+    const WINDOW_DAYS = 7;
 
     if (!username) return res.status(400).json({ error: "Vui lòng nhập nickname" });
     if (!text) return res.status(400).json({ error: "Vui lòng nhập nội dung góp ý" });
 
+    const { rows: countRows } = await pool.query(
+      `select count(*)::int as cnt
+       from comments
+       where ip = $1
+         and created_at >= now() - interval '${WINDOW_DAYS} days'`,
+      [ip]
+    );
+
+    if ((countRows[0]?.cnt || 0) >= LIMIT) {
+      return res.status(429).json({
+        error:
+          "Bạn đã gửi quá 5 góp ý trong 7 ngày qua. Vui lòng thử lại sau."
+      });
+    }
+
     const { rows } = await pool.query(
-      `insert into comments (username, text)
-       values ($1, $2)
+      `insert into comments (username, text, ip)
+       values ($1, $2, $3)
        returning id, username, text, heart,
                  to_char(created_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'DD/MM/YYYY HH24:MI:SS') as date`,
-      [username.slice(0, 50), text.slice(0, 1000)]
+      [username.slice(0, 50), text.slice(0, 1000), ip]
     );
 
     res.json({ ok: true, item: rows[0] });
@@ -1185,4 +1221,7 @@ server.listen(PORT, () => {
 
   // init table hội chẩn (nếu pool có)
   hoichanInitTable().catch((e) => console.error("[hoichan] init table error", e));
+  commentsInitTable().catch((e) =>
+    console.error("[comments] init table error", e)
+  );
 });

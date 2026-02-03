@@ -52,6 +52,12 @@
         .delete-admin-btn:hover{background: rgba(255, 59, 48, .18); transform: translateY(-1px);}
         .delete-admin-btn:active{transform: translateY(0);}
         .delete-admin-btn[disabled]{opacity:.6; cursor:not-allowed; transform:none;}
+        .comment-limit-note{
+            margin-left:10px;
+            color:#ff3b30;
+            font-weight:600;
+            font-size:.95rem;
+        }
     </style>
 
 </head>
@@ -191,6 +197,7 @@
                     <textarea id="comment-text" placeholder="Viết góp ý của bạn..."></textarea>
                 </div>
                 <button class="submit-btn" id="submit-btn" onclick="addComment()">Gửi góp ý</button>
+                <span class="comment-limit-note" id="comment-limit-note" aria-live="polite"></span>
             </div>
 
             <div class="comments-list" id="comments-list">
@@ -243,6 +250,8 @@
             const username = document.getElementById('username').value.trim();
             const text = document.getElementById('comment-text').value.trim();
             const submitBtn = document.getElementById('submit-btn');
+            const limitNote = document.getElementById('comment-limit-note');
+            if (limitNote) limitNote.textContent = '';
 
             if (!username) {
                 alert('Vui lòng nhập nickname của bạn');
@@ -270,6 +279,12 @@
                     document.getElementById('comment-text').value = '';
                     currentPage = 1;
                     await loadComments();
+                } else if (response.status === 429) {
+                    if (limitNote) {
+                        limitNote.textContent = 'Bạn đã góp ý quá nhiều';
+                    } else {
+                        alert(data.error || 'Bạn đã góp ý quá nhiều');
+                    }
                 } else {
                     alert('Lỗi: ' + (data.error || 'Không thể gửi góp ý'));
                 }
