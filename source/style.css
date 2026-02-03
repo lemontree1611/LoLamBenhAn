@@ -1115,6 +1115,15 @@ input[type="number"] {
   color: currentColor;
 }
 
+/* CLS AI button: Apple green */
+.cls-ai-btn{
+  color:#34c759;
+  border-color: rgba(52,199,89,0.25);
+}
+.cls-ai-btn:hover{
+  background: rgba(52,199,89,0.12);
+}
+
 @media (max-width: 520px){
   .apple-icon-btn .btn-text{ display:none; }
 }
