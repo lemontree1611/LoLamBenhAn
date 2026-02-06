@@ -797,6 +797,12 @@ function _formatCanLamSang(val) {
 
 const CLS_LIST_URL = "../../source/cls.txt";
 let __CLS_LIST_CACHE__ = null;
+const CLS_REQUIRED = [
+  "Công thức máu",
+  "Chức năng gan",
+  "Chức năng thận",
+  "Điện giải đồ",
+];
 
 function _normalizeClsName(s) {
   return String(s || "")
@@ -915,7 +921,6 @@ function _pickClsShortlist(clsData, diagText, maxItems = 20) {
   addIf(k => !priorityLabels.has(k) && !alwaysLabels.has(k));
 
   const picked = new Set();
-  const groupedOut = [];
 
   for (const g of ordered) {
     if (picked.size >= maxItems) break;
@@ -926,6 +931,22 @@ function _pickClsShortlist(clsData, diagText, maxItems = 20) {
       picked.add(item);
       items.push(item);
     }
+  }
+
+  const requiredCanon = _getRequiredCanonical(clsData.flat || []);
+  for (const r of requiredCanon) picked.add(r);
+
+  const orderedKeys = new Set(ordered.map(g => _normalizeClsName(g.label)));
+  const orderedAll = ordered.slice();
+  for (const g of groups) {
+    const key = _normalizeClsName(g.label);
+    if (orderedKeys.has(key)) continue;
+    if (g.items.some(it => picked.has(it))) orderedAll.push(g);
+  }
+
+  const groupedOut = [];
+  for (const g of orderedAll) {
+    const items = g.items.filter(it => picked.has(it));
     if (items.length) groupedOut.push({ label: g.label, items });
   }
 
@@ -951,6 +972,16 @@ function _matchCanonicalCls(name, canonList, canonMap) {
     }
   }
   return best;
+}
+
+function _getRequiredCanonical(canonList) {
+  const canonMap = new Map(canonList.map(c => [_normalizeClsName(c), c]));
+  const out = [];
+  for (const req of CLS_REQUIRED) {
+    const c = _matchCanonicalCls(req, canonList, canonMap);
+    if (c && !out.includes(c)) out.push(c);
+  }
+  return out;
 }
 
 function _parseClsItems(val) {
@@ -1003,6 +1034,10 @@ function _formatClsOutput(parsed, canonList, allowedList = canonList) {
     return out;
   };
   const a = mapItems(parsed.a || []);
+  const requiredCanon = _getRequiredCanonical(canonList).filter(c => allowedSet.has(_normalizeClsName(c)));
+  for (const r of requiredCanon) {
+    if (!a.includes(r)) a.push(r);
+  }
   const b = mapItems(parsed.b || []);
   const c = mapItems(parsed.c || []);
   return [
