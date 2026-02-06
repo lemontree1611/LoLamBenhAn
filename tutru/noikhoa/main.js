@@ -1034,12 +1034,13 @@ function _formatClsOutput(parsed, canonList, allowedList = canonList) {
     return out;
   };
   const a = mapItems(parsed.a || []);
-  const requiredCanon = _getRequiredCanonical(canonList).filter(c => allowedSet.has(_normalizeClsName(c)));
-  for (const r of requiredCanon) {
-    if (!a.includes(r)) a.push(r);
-  }
   const b = mapItems(parsed.b || []);
   const c = mapItems(parsed.c || []);
+  const requiredCanon = _getRequiredCanonical(canonList).filter(c => allowedSet.has(_normalizeClsName(c)));
+  for (const r of requiredCanon) {
+    if (a.includes(r) || b.includes(r) || c.includes(r)) continue;
+    a.push(r);
+  }
   return [
     `- Chẩn đoán: ${a.join("; ")}`.trim(),
     `- Tìm nguyên nhân: ${b.join("; ")}`.trim(),
