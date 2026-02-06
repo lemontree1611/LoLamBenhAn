@@ -808,27 +808,128 @@ function _normalizeClsName(s) {
 
 function _parseClsList(text) {
   const lines = String(text || "").split(/\r?\n/);
-  const out = [];
+  const groups = [];
+  const groupMap = new Map();
+  let current = null;
+
+  const ensureGroup = (label) => {
+    const key = _normalizeClsName(label);
+    if (groupMap.has(key)) return groupMap.get(key);
+    const g = { label, items: [] };
+    groupMap.set(key, g);
+    groups.push(g);
+    return g;
+  };
+
   for (let line of lines) {
     line = String(line || "").trim();
     if (!line) continue;
     if (line.startsWith("#") || line.startsWith("//")) continue;
+
+    const header = line.match(/^\[(.+)\]$/);
+    if (header) {
+      current = ensureGroup(header[1].trim());
+      continue;
+    }
+
     line = line.replace(/^\s*[-•\u2022]\s*/, "");
     if (!line) continue;
-    out.push(line);
+
+    if (!current) current = ensureGroup("Khác");
+    if (!current.items.includes(line)) current.items.push(line);
   }
-  // de-dup
-  return Array.from(new Set(out));
+
+  const flat = [];
+  const seen = new Set();
+  for (const g of groups) {
+    for (const item of g.items) {
+      const key = _normalizeClsName(item);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      flat.push(item);
+    }
+  }
+
+  return { groups, flat };
 }
 
 async function _loadClsList() {
-  if (__CLS_LIST_CACHE__ && Array.isArray(__CLS_LIST_CACHE__)) return __CLS_LIST_CACHE__;
+  if (__CLS_LIST_CACHE__ && __CLS_LIST_CACHE__.flat) return __CLS_LIST_CACHE__;
   const res = await fetch(CLS_LIST_URL, { cache: "no-store" });
   if (!res.ok) throw new Error(`Không đọc được ${CLS_LIST_URL} (HTTP ${res.status})`);
   const text = await res.text();
-  const list = _parseClsList(text);
-  __CLS_LIST_CACHE__ = list;
-  return list;
+  const data = _parseClsList(text);
+  __CLS_LIST_CACHE__ = data;
+  return data;
+}
+
+const CLS_GROUP_DEFS = [
+  { key: "hema", label: "Huyết học & Đông máu", itemRe: /(công thức máu|hồng cầu|đông máu|d-dimer|tủy đồ|cầm máu)/i, signals: /(thiếu máu|xuất huyết|đông máu|d-dimer|bạch cầu)/i },
+  { key: "biochem", label: "Sinh hóa", itemRe: /(đường huyết|chức năng gan|chức năng thận|điện giải|ca|mg|phospho|mỡ máu|men tim|acid uric|albumin|lactate)/i, signals: /(gan|thận|đái tháo đường|đường huyết|điện giải|mỡ máu)/i },
+  { key: "inflamm", label: "Viêm & Miễn dịch", itemRe: /(crp|procalcitonin|rf|anti-ccp|ana|anti-dsdna|bổ thể|igg|iga|igm|ige)/i, signals: /(viêm|nhiễm|sốt|tự miễn|khớp)/i },
+  { key: "micro", label: "Vi sinh", itemRe: /(soi|cấy|kháng sinh đồ|pcr vi sinh|kí sinh trùng|test nhanh)/i, signals: /(nhiễm|sốt|vi khuẩn|virus)/i },
+  { key: "urine", label: "Nước tiểu", itemRe: /(nước tiểu|protein niệu|microalbumin|cặn addis)/i, signals: /(tiểu|niệu|thận)/i },
+  { key: "stool", label: "Phân", itemRe: /(soi phân|máu ẩn trong phân)/i, signals: /(tiêu chảy|đại tràng|phân)/i },
+  { key: "path", label: "Giải phẫu bệnh", itemRe: /(sinh thiết|tế bào học|hóa mô|sinh học phân tử)/i, signals: /(u|ung thư|khối u|tân sinh)/i },
+  { key: "xray", label: "X-quang", itemRe: /^x-quang/i, signals: /(phổi|ngực|xương|chấn thương)/i },
+  { key: "us", label: "Siêu âm", itemRe: /^siêu âm/i, signals: /(gan|mật|tụy|thận|bụng|tim)/i },
+  { key: "ctmri", label: "CT/MRI/Xạ hình", itemRe: /(ct|mri|pet\/ct|spect|xạ hình)/i, signals: /(não|sọ|u|ung thư|mạch máu|đột quỵ)/i },
+  { key: "cardio", label: "Tim mạch", itemRe: /(điện tâm đồ|holter|siêu âm tim|nghiệm pháp|thông tim)/i, signals: /(tim|mạch|suy tim|nhồi máu|tăng huyết áp)/i },
+  { key: "pulm", label: "Hô hấp", itemRe: /(chức năng hô hấp|dlco|nội soi phế quản)/i, signals: /(phổi|hô hấp|hen|copd|khó thở|đờm)/i },
+  { key: "endo", label: "Nội soi tiêu hóa", itemRe: /(nội soi dạ dày|nội soi đại tràng|ercp|đo pH)/i, signals: /(dạ dày|ruột|đại tràng|tiêu hóa)/i },
+  { key: "neuro", label: "Thần kinh", itemRe: /(điện não|điện cơ|điện thế gợi)/i, signals: /(não|đột quỵ|động kinh|co giật|yếu liệt)/i },
+  { key: "ent", label: "Tai mũi họng", itemRe: /(tai mũi họng|thính lực)/i, signals: /(tai|mũi|họng)/i },
+  { key: "ob", label: "Sản phụ", itemRe: /(tim thai|cổ tử cung|nitrazin)/i, signals: /(thai|sản|phụ khoa)/i },
+  { key: "interv", label: "Thủ thuật & Can thiệp", itemRe: /(can thiệp|thủ thuật chẩn đoán|chọc dò|chọc hút|nội soi can thiệp)/i, signals: /(dịch|chọc dò|can thiệp)/i },
+];
+
+function _pickClsShortlist(clsData, diagText, maxItems = 20) {
+  const groups = clsData?.groups || [];
+  const priorityLabels = new Set();
+  const alwaysLabels = new Set([
+    _normalizeClsName("Huyết học & Đông máu"),
+    _normalizeClsName("Sinh hóa"),
+    _normalizeClsName("Viêm & Miễn dịch"),
+  ]);
+
+  for (const def of CLS_GROUP_DEFS) {
+    if (def.signals && def.signals.test(diagText)) {
+      priorityLabels.add(_normalizeClsName(def.label));
+    }
+  }
+
+  const ordered = [];
+  const added = new Set();
+  const addIf = (pred) => {
+    for (const g of groups) {
+      const key = _normalizeClsName(g.label);
+      if (added.has(key)) continue;
+      if (!pred(key)) continue;
+      ordered.push(g);
+      added.add(key);
+    }
+  };
+
+  addIf(k => priorityLabels.has(k));
+  addIf(k => alwaysLabels.has(k) && !priorityLabels.has(k));
+  addIf(k => !priorityLabels.has(k) && !alwaysLabels.has(k));
+
+  const picked = new Set();
+  const groupedOut = [];
+
+  for (const g of ordered) {
+    if (picked.size >= maxItems) break;
+    const items = [];
+    for (const item of g.items) {
+      if (picked.size >= maxItems) break;
+      if (picked.has(item)) continue;
+      picked.add(item);
+      items.push(item);
+    }
+    if (items.length) groupedOut.push({ label: g.label, items });
+  }
+
+  return { flat: Array.from(picked), groupedOut };
 }
 
 function _matchCanonicalCls(name, canonList, canonMap) {
@@ -888,13 +989,16 @@ function _parseClsReply(reply, canonList) {
   };
 }
 
-function _formatClsOutput(parsed, canonList) {
+function _formatClsOutput(parsed, canonList, allowedList = canonList) {
+  const allowedSet = new Set(allowedList.map(c => _normalizeClsName(c)));
   const canonMap = new Map(canonList.map(c => [_normalizeClsName(c), c]));
   const mapItems = (arr) => {
     const out = [];
     for (const raw of arr) {
       const c = _matchCanonicalCls(raw, canonList, canonMap);
-      if (c && !out.includes(c)) out.push(c);
+      if (!c) continue;
+      if (!allowedSet.has(_normalizeClsName(c))) continue;
+      if (!out.includes(c)) out.push(c);
     }
     return out;
   };
@@ -1102,11 +1206,15 @@ if (clsBtn) {
     try {
       _setDiagPlaceholders(true);
 
-      const clsList = await _loadClsList();
-      if (!clsList || clsList.length === 0) {
+      const clsData = await _loadClsList();
+      if (!clsData || !clsData.flat || clsData.flat.length === 0) {
         alert("Danh sách cận lâm sàng trong source/cls.txt đang trống.");
         return;
       }
+
+      const diagText = `${so}\n${pd}`.trim();
+      const shortlist = _pickClsShortlist(clsData, diagText, 20);
+      const shortlistText = shortlist.groupedOut.map(g => `${g.label}: ${g.items.join("; ")}`).join("\n");
 
       const CLS_SYSTEM_PROMPT = `
 Bạn là bác sĩ nội khoa hỗ trợ soạn bệnh án.
@@ -1116,7 +1224,7 @@ sắp xếp theo đúng 3 nhóm:
 - Tìm nguyên nhân
 - Hỗ trợ điều trị
 
-CHỈ ĐƯỢC chọn các mục có trong danh sách CLS chuẩn. Không tự thêm mục mới.
+CHỈ ĐƯỢC chọn các mục có trong danh sách CLS đã lọc. Không tự thêm mục mới.
 Trả về JSON theo schema:
 {
   "chan_doan": ["CLS 1", "CLS 2"],
@@ -1132,8 +1240,8 @@ Trả về JSON theo schema:
 Chẩn đoán phân biệt:
 ${pd || "(chưa có)"}
 
-Danh sách CLS chuẩn (mỗi dòng 1 mục):
-${clsList.join("\n")}`
+Danh sách CLS đã lọc (tối đa 20 mục, chia theo nhóm):
+${shortlistText}`
         }
       ];
 
@@ -1157,8 +1265,8 @@ ${clsList.join("\n")}`
 
       if (!reply) return;
 
-      const parsed = _parseClsReply(reply, clsList);
-      const formatted = _formatClsOutput(parsed, clsList);
+      const parsed = _parseClsReply(reply, clsData.flat);
+      const formatted = _formatClsOutput(parsed, clsData.flat, shortlist.flat);
 
       if (document.activeElement !== clsEl) {
         _setTextareaValue(clsEl, formatted);
