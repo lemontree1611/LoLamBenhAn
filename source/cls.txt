@@ -1,0 +1,85 @@
+﻿Công thức máu (CBC)
+Hồng cầu lưới
+Định nhóm máu ABO, Rh
+Đông máu cơ bản: PT, INR, aPTT, Fibrinogen
+D-dimer
+Thời gian đông cầm máu
+Tủy đồ (chọc hút/sinh thiết tủy)
+Đường huyết (đói, sau ăn, HbA1c)
+Chức năng gan: AST, ALT, ALP, GGT, Bilirubin
+Chức năng thận: Ure, Creatinin, eGFR
+Điện giải đồ: Na⁺, K⁺, Cl⁻
+Định lượng Ca²⁺, Mg²⁺, Phospho
+Mỡ máu: Cholesterol, HDL, LDL, Triglycerid
+Men tim: CK, CK-MB, Troponin
+Định lượng acid uric
+Định lượng albumin
+Khí máu động mạch
+Lactate máu
+CRP
+Procalcitonin
+RF, Anti-CCP
+ANA, Anti-dsDNA
+Bổ thể C3, C4
+IgG, IgA, IgM, IgE
+Soi – cấy vi khuẩn (máu, nước tiểu, đàm…)
+Kháng sinh đồ
+PCR vi sinh
+Soi ký sinh trùng (phân, máu)
+Test nhanh: Ns1, COVID-19…
+Tổng phân tích nước tiểu
+Cặn Addis
+Định lượng protein niệu, microalbumin
+Soi phân, tìm máu ẩn trong phân
+Sinh thiết mô
+Tế bào học (Pap smear, dịch chọc hút)
+Hóa mô miễn dịch
+Sinh học phân tử mô bệnh học
+X-quang ngực thẳng
+X-quang bộ phận thẳng/nghiêng
+X-quang bụng-chậu không chuẩn bị (KUB)
+X-quang có tiêm cản quang (dạ dày, đại tràng, tiết niệu…)
+Siêu âm bụng
+Siêu âm mạch máu chi
+Siêu âm Doppler
+Siêu âm đầu dò âm đạo
+Siêu âm đàn hồi mô
+CT-scan sọ não
+CT-scan lòng ngực
+CT-scan bụng chậu
+CT-scan có tiêm thuốc cản quang
+CT mạch máu (CTA)
+MRI sọ não
+MRI cột sống cổ, ngực, thắt lưng
+MRI khớp
+MRI mạch máu (MRA)
+Xạ hình xương
+Xạ hình tuyến giáp
+PET/CT
+SPECT
+Điện tâm đồ (ECG)
+Holter ECG
+Holter huyết áp
+Siêu âm tim
+Nghiệm pháp gắng sức
+Thông tim – chụp mạch vành
+Đo chức năng hô hấp (spirometry)
+Đo DLCO
+Nội soi phế quản
+Nội soi dạ dày – tá tràng
+Nội soi đại tràng
+Nội soi mật tụy ngược dòng (ERCP)
+Đo pH thực quản
+Điện não đồ (EEG)
+Điện cơ (EMG)
+Ghi điện thế gợi
+Đo thính lực
+Nội soi tai mũi họng
+Monitoring tim thai
+Soi cổ tử cung
+Nitrazin Test
+Chọc dò dịch não tủy
+Chọc hút/sinh thiết kim nhỏ
+Can thiệp mạch
+Nội soi can thiệp
+Thủ thuật chẩn đoán dưới hướng dẫn hình ảnh (siêu âm/x-quang)

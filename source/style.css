@@ -1117,11 +1117,34 @@ input[type="number"] {
 
 /* CLS AI button: Apple green */
 .cls-ai-btn{
-  color:#34c759;
-  border-color: rgba(52,199,89,0.25);
+  background: #34c759;
+  color: #fff;
+  border-color: #34c759;
+  padding: 4px 8px;
+  height: 28px;
+  font-size: 12px;
+  min-width: auto;
+  width: auto;
+  letter-spacing: 0;
+  flex: 0 0 auto;
 }
 .cls-ai-btn:hover{
-  background: rgba(52,199,89,0.12);
+  background: #2fb653;
+}
+
+/* Keep CLS AI button inline-sized on mobile */
+@media (max-width: 640px){
+  .cls-ai-btn{
+    width: auto !important;
+  }
+}
+
+/* Override row grid for the CLS header line */
+.cls-row{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 520px){

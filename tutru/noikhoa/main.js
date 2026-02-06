@@ -795,6 +795,119 @@ function _formatCanLamSang(val) {
   return String(val).trim();
 }
 
+const CLS_LIST_URL = "../../source/cls.txt";
+let __CLS_LIST_CACHE__ = null;
+
+function _normalizeClsName(s) {
+  return String(s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function _parseClsList(text) {
+  const lines = String(text || "").split(/\r?\n/);
+  const out = [];
+  for (let line of lines) {
+    line = String(line || "").trim();
+    if (!line) continue;
+    if (line.startsWith("#") || line.startsWith("//")) continue;
+    line = line.replace(/^\s*[-•\u2022]\s*/, "");
+    if (!line) continue;
+    out.push(line);
+  }
+  // de-dup
+  return Array.from(new Set(out));
+}
+
+async function _loadClsList() {
+  if (__CLS_LIST_CACHE__ && Array.isArray(__CLS_LIST_CACHE__)) return __CLS_LIST_CACHE__;
+  const res = await fetch(CLS_LIST_URL, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Không đọc được ${CLS_LIST_URL} (HTTP ${res.status})`);
+  const text = await res.text();
+  const list = _parseClsList(text);
+  __CLS_LIST_CACHE__ = list;
+  return list;
+}
+
+function _matchCanonicalCls(name, canonList, canonMap) {
+  const n = _normalizeClsName(name);
+  if (!n) return null;
+  if (canonMap.has(n)) return canonMap.get(n);
+
+  let best = null;
+  let bestScore = Infinity;
+  for (const c of canonList) {
+    const cn = _normalizeClsName(c);
+    if (!cn) continue;
+    if (cn.includes(n) || n.includes(cn)) {
+      const score = Math.abs(cn.length - n.length);
+      if (score < bestScore) {
+        bestScore = score;
+        best = c;
+      }
+    }
+  }
+  return best;
+}
+
+function _parseClsItems(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val.flat().map(v => String(v || "").trim()).filter(Boolean);
+  return String(val || "")
+    .split(/\r?\n|;|•|\u2022/)
+    .map(s => String(s || "").trim())
+    .filter(Boolean);
+}
+
+function _parseClsReply(reply, canonList) {
+  const json = _extractJsonFromText(reply);
+  if (json) {
+    const a = json.chan_doan ?? json.chandoan ?? json.diagnosis ?? json.a;
+    const b = json.tim_nguyen_nhan ?? json.nguyen_nhan ?? json.cause ?? json.b;
+    const c = json.ho_tro_dieu_tri ?? json.ho_tro ?? json.dieu_tri ?? json.support ?? json.c;
+    return {
+      a: _parseClsItems(a),
+      b: _parseClsItems(b),
+      c: _parseClsItems(c),
+    };
+  }
+
+  const lines = String(reply || "").split(/\r?\n/);
+  const pick = (re) => {
+    const line = lines.find(l => re.test(l));
+    if (!line) return [];
+    const m = line.match(/:\s*(.*)$/);
+    return _parseClsItems(m ? m[1] : "");
+  };
+  return {
+    a: pick(/chẩn\s*đoán/i),
+    b: pick(/tìm\s*nguyên\s*nhân/i),
+    c: pick(/hỗ\s*trợ\s*điều\s*trị/i),
+  };
+}
+
+function _formatClsOutput(parsed, canonList) {
+  const canonMap = new Map(canonList.map(c => [_normalizeClsName(c), c]));
+  const mapItems = (arr) => {
+    const out = [];
+    for (const raw of arr) {
+      const c = _matchCanonicalCls(raw, canonList, canonMap);
+      if (c && !out.includes(c)) out.push(c);
+    }
+    return out;
+  };
+  const a = mapItems(parsed.a || []);
+  const b = mapItems(parsed.b || []);
+  const c = mapItems(parsed.c || []);
+  return [
+    `- Chẩn đoán: ${a.join("; ")}`.trim(),
+    `- Tìm nguyên nhân: ${b.join("; ")}`.trim(),
+    `- Hỗ trợ điều trị: ${c.join("; ")}`.trim(),
+  ].join("\n");
+}
+
 function _parseDiagnosisReply(reply) {
   const json = _extractJsonFromText(reply);
   if (json) {
@@ -845,12 +958,13 @@ function _setTextareaValue(el, value) {
   return true;
 }
 
-function _setDiagPlaceholders(loading) {
+function _setDiagPlaceholders(loading, opts = {}) {
   const soEl = document.getElementById("chandoanso");
   const pdEl = document.getElementById("chandoanpd");
   const clsEl = document.getElementById("cls_canlamsang");
   const msg = "Đợi xíu, bot LÒ sẽ chẩn đoán giúp bạn...";
   const clsMsg = "Đợi xíu, để LÒ đề nghị cận lâm sàng cho...";
+  const useCls = opts.cls !== false;
 
   [soEl, pdEl].forEach((el) => {
     if (!el) return;
@@ -866,7 +980,7 @@ function _setDiagPlaceholders(loading) {
     }
   });
 
-  if (!clsEl) return;
+  if (!clsEl || !useCls) return;
   if (loading) {
     if (clsEl.getAttribute("data-old-placeholder") === null) {
       clsEl.setAttribute("data-old-placeholder", clsEl.placeholder || "");
@@ -907,7 +1021,7 @@ async function runAutoDiagnosis(tomtat) {
   lastTomtatRequested = tomtat;
 
   try {
-    _setDiagPlaceholders(true);
+    _setDiagPlaceholders(true, { cls: false });
 
     const messages = [
       { role: "system", content: DIAG_SYSTEM_PROMPT },
@@ -957,7 +1071,7 @@ async function runAutoDiagnosis(tomtat) {
   } catch (err) {
     console.warn("Auto diagnosis failed:", err);
   } finally {
-    _setDiagPlaceholders(false);
+    _setDiagPlaceholders(false, { cls: false });
   }
 }
 
@@ -988,21 +1102,39 @@ if (clsBtn) {
     try {
       _setDiagPlaceholders(true);
 
+      const clsList = await _loadClsList();
+      if (!clsList || clsList.length === 0) {
+        alert("Danh sách cận lâm sàng trong source/cls.txt đang trống.");
+        return;
+      }
+
       const CLS_SYSTEM_PROMPT = `
 Bạn là bác sĩ nội khoa hỗ trợ soạn bệnh án.
 Dựa trên chẩn đoán sơ bộ và chẩn đoán phân biệt, hãy đề xuất cận lâm sàng hợp lý,
-sắp xếp theo đúng định dạng:
-- Chẩn đoán: (CLS hỗ trợ chẩn đoán)
-- Tìm nguyên nhân: (CLS để tìm nguyên nhân nếu có)
-- Hỗ trợ điều trị: (CLS hỗ trợ điều trị nếu có)
+sắp xếp theo đúng 3 nhóm:
+- Chẩn đoán
+- Tìm nguyên nhân
+- Hỗ trợ điều trị
 
-Chỉ trả về 3 dòng đúng định dạng trên, mỗi dòng là danh sách CLS, ngăn cách bằng dấu ;
-Không thêm giải thích.
+CHỈ ĐƯỢC chọn các mục có trong danh sách CLS chuẩn. Không tự thêm mục mới.
+Trả về JSON theo schema:
+{
+  "chan_doan": ["CLS 1", "CLS 2"],
+  "tim_nguyen_nhan": ["CLS 3"],
+  "ho_tro_dieu_tri": ["CLS 4"]
+}
 `.trim();
 
       const messages = [
         { role: "system", content: CLS_SYSTEM_PROMPT },
-        { role: "user", content: `Chẩn đoán sơ bộ: ${so || "(chưa có)"}\nChẩn đoán phân biệt:\n${pd || "(chưa có)"}` }
+        { role: "user", content:
+`Chẩn đoán sơ bộ: ${so || "(chưa có)"}
+Chẩn đoán phân biệt:
+${pd || "(chưa có)"}
+
+Danh sách CLS chuẩn (mỗi dòng 1 mục):
+${clsList.join("\n")}`
+        }
       ];
 
       const response = await fetch(DIAG_API_URL, {
@@ -1025,8 +1157,11 @@ Không thêm giải thích.
 
       if (!reply) return;
 
+      const parsed = _parseClsReply(reply, clsList);
+      const formatted = _formatClsOutput(parsed, clsList);
+
       if (document.activeElement !== clsEl) {
-        _setTextareaValue(clsEl, reply);
+        _setTextareaValue(clsEl, formatted);
       }
     } catch (err) {
       console.warn("CLS AI support failed:", err);
