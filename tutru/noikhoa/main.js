@@ -1305,7 +1305,10 @@ ${shortlistText}`
       const formatted = _formatClsOutput(parsed, clsData.flat, shortlist.flat);
 
       if (document.activeElement !== clsEl) {
-        _setTextareaValue(clsEl, formatted);
+        const hasData = !!clsEl.value.trim();
+        if (!hasData || confirm("Ô cận lâm sàng đã có dữ liệu. Bạn muốn ghi đè không?")) {
+          _setTextareaValue(clsEl, formatted);
+        }
       }
     } catch (err) {
       console.warn("CLS AI support failed:", err);
