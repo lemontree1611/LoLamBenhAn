@@ -126,9 +126,11 @@ const DATABASE_URL = process.env.DATABASE_URL || "";
 let pool = null;
 
 if (DATABASE_URL) {
-  // Render external postgres thường yêu cầu SSL
+  // Supabase/Render/Neon đều yêu cầu SSL cho kết nối public
   const needsSSL =
-    process.env.NODE_ENV === "production" || DATABASE_URL.includes("render.com");
+    process.env.NODE_ENV === "production" ||
+    /render\.com|supabase\.co|neon\.tech/i.test(DATABASE_URL) ||
+    DATABASE_URL.includes("sslmode=require");
 
   pool = new Pool({
     connectionString: DATABASE_URL,
