@@ -1105,6 +1105,12 @@ function _stripHistoryIfMissing(tomtat, text) {
   return String(text || "").replace(/\s*\/\s*[^/]*$/g, "").trim();
 }
 
+function _stripPatientPrefix(text) {
+  return String(text || "")
+    .replace(/^\s*(bệnh\s*nhân|bn)\s*(bị|được\s*chẩn\s*đoán|chẩn\s*đoán\s*là)\s*[:\-]?\s*/i, "")
+    .trim();
+}
+
 function _setDiagPlaceholders(loading, opts = {}) {
   const soEl = document.getElementById("chandoanso");
   const pdEl = document.getElementById("chandoanpd");
@@ -1391,6 +1397,7 @@ Dựa trên tóm tắt bệnh án và kết quả cận lâm sàng, hãy trả v
 2) 1 hướng điều trị ngắn gọn
 
 Chẩn đoán phải là 1 câu tự nhiên, KHÔNG dùng dấu "+".
+Không bắt đầu bằng "Bệnh nhân..." hay "BN...".
 Giữ dấu "/" trước phần tiền sử bệnh nền nếu có; nếu không có thì bỏ phần sau "/".
 
 Trả về JSON theo schema:
@@ -1429,7 +1436,7 @@ Trả về JSON theo schema:
       const diagRaw = parsed?.chandoan_xacdinh || parsed?.chandoan || parsed?.diagnosis || reply;
       const huongRaw = parsed?.huong_dieu_tri || parsed?.huongdieutri || parsed?.treatment || "";
 
-      const finalDiag = _stripHistoryIfMissing(tomtat, diagRaw);
+      const finalDiag = _stripHistoryIfMissing(tomtat, _stripPatientPrefix(diagRaw));
       _setTextareaValue(xacdinhEl, finalDiag);
 
       const huongEl = document.getElementById("huongdieutri");
