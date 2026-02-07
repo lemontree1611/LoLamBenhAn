@@ -1285,17 +1285,18 @@ function _setDiagPlaceholders(loading, opts = {}) {
     }
   });
 
-  if (!clsEl || !useCls) return;
-  if (loading) {
-    if (clsEl.getAttribute("data-old-placeholder") === null) {
-      clsEl.setAttribute("data-old-placeholder", clsEl.placeholder || "");
+  if (clsEl && useCls) {
+    if (loading) {
+      if (clsEl.getAttribute("data-old-placeholder") === null) {
+        clsEl.setAttribute("data-old-placeholder", clsEl.placeholder || "");
+      }
+      clsEl.placeholder = clsMsg;
+    } else {
+      const old = clsEl.getAttribute("data-old-placeholder");
+      if (old !== null) clsEl.placeholder = old;
+      else clsEl.placeholder = "";
+      clsEl.removeAttribute("data-old-placeholder");
     }
-    clsEl.placeholder = clsMsg;
-  } else {
-    const old = clsEl.getAttribute("data-old-placeholder");
-    if (old !== null) clsEl.placeholder = old;
-    else clsEl.placeholder = "";
-    clsEl.removeAttribute("data-old-placeholder");
   }
 
   if (!useFinal) return;
