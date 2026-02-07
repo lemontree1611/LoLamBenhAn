@@ -728,6 +728,7 @@ Từ tóm tắt bệnh án, hãy đề xuất:
 
 Mỗi chẩn đoán phải là 1 câu tự nhiên, KHÔNG dùng dấu "+".
 Giữ dấu "/" trước phần tiền sử bệnh nền.
+Nếu tóm tắt bệnh án không có tiền sử/tiền căn thì bỏ phần từ dấu "/" trở về sau.
 Ví dụ đúng:
 "Viêm phổi cộng đồng mức độ trung bình do vi khuẩn, có yếu tố thúc đẩy hút thuốc lá / tiền sử COPD."
 
@@ -1098,6 +1099,12 @@ function _setTextareaValue(el, value) {
   return true;
 }
 
+function _stripHistoryIfMissing(tomtat, text) {
+  const hasHistory = /(tiền\s*sử|tiền\s*căn|bệnh\s*nền|tien\s*su|tien\s*can|benh\s*nen)/i.test(String(tomtat || ""));
+  if (hasHistory) return String(text || "").trim();
+  return String(text || "").replace(/\s*\/\s*[^/]*$/g, "").trim();
+}
+
 function _setDiagPlaceholders(loading, opts = {}) {
   const soEl = document.getElementById("chandoanso");
   const pdEl = document.getElementById("chandoanpd");
@@ -1198,16 +1205,19 @@ async function runAutoDiagnosis(tomtat) {
     const parsed = _parseDiagnosisReply(reply);
     if (!parsed || (!parsed.soBo && (!parsed.phanBiet || parsed.phanBiet.length === 0))) return;
 
-    const canSetSo = parsed.soBo
+    const soBoFinal = _stripHistoryIfMissing(tomtat, parsed.soBo);
+    const phanBietFinal = (parsed.phanBiet || []).map(x => _stripHistoryIfMissing(tomtat, x)).filter(Boolean);
+
+    const canSetSo = soBoFinal
       && document.activeElement !== soEl
       && (soEl.value === before.so || !soEl.value.trim());
 
-    const canSetPd = parsed.phanBiet && parsed.phanBiet.length
+    const canSetPd = phanBietFinal && phanBietFinal.length
       && document.activeElement !== pdEl
       && (pdEl.value === before.pd || !pdEl.value.trim());
 
-    if (canSetSo) _setTextareaValue(soEl, parsed.soBo);
-    if (canSetPd) _setTextareaValue(pdEl, parsed.phanBiet.slice(0, 2).join("\n"));
+    if (canSetSo) _setTextareaValue(soEl, soBoFinal);
+    if (canSetPd) _setTextareaValue(pdEl, phanBietFinal.slice(0, 2).join("\n"));
   } catch (err) {
     console.warn("Auto diagnosis failed:", err);
   } finally {
