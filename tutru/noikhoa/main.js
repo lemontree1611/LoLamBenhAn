@@ -1109,9 +1109,13 @@ function _setDiagPlaceholders(loading, opts = {}) {
   const soEl = document.getElementById("chandoanso");
   const pdEl = document.getElementById("chandoanpd");
   const clsEl = document.getElementById("cls_canlamsang");
+  const xdEl = document.getElementById("chandoanxacdinh");
+  const huongEl = document.getElementById("huongdieutri");
   const msg = "Đợi xíu, bot LÒ sẽ chẩn đoán giúp bạn...";
   const clsMsg = "Đợi xíu, để LÒ đề nghị cận lâm sàng cho...";
+  const finalMsg = "đợi bot LÒ suy nghĩ xíuuu";
   const useCls = opts.cls !== false;
+  const useFinal = opts.final === true;
 
   [soEl, pdEl].forEach((el) => {
     if (!el) return;
@@ -1139,6 +1143,21 @@ function _setDiagPlaceholders(loading, opts = {}) {
     else clsEl.placeholder = "";
     clsEl.removeAttribute("data-old-placeholder");
   }
+
+  if (!useFinal) return;
+  [xdEl, huongEl].forEach((el) => {
+    if (!el) return;
+    if (loading) {
+      if (el.getAttribute("data-old-placeholder") === null) {
+        el.setAttribute("data-old-placeholder", el.placeholder || "");
+      }
+      el.placeholder = finalMsg;
+    } else {
+      const old = el.getAttribute("data-old-placeholder");
+      if (old !== null) el.placeholder = old;
+      el.removeAttribute("data-old-placeholder");
+    }
+  });
 }
 
 function scheduleAutoDiagnosis(immediate = false) {
@@ -1363,12 +1382,22 @@ if (diagBtn) {
 
     try {
       diagBtn.disabled = true;
+      _setDiagPlaceholders(true, { cls: false, final: true });
 
       const FINAL_DIAG_PROMPT = `
 Bạn là bác sĩ nội khoa.
-Dựa trên tóm tắt bệnh án và kết quả cận lâm sàng, hãy đưa ra 1 chẩn đoán xác định.
-Trả về 1 câu duy nhất, không liệt kê, không xuống dòng.
+Dựa trên tóm tắt bệnh án và kết quả cận lâm sàng, hãy trả về:
+1) 1 chẩn đoán xác định (1 câu duy nhất, theo form như chẩn đoán sơ bộ)
+2) 1 hướng điều trị ngắn gọn
+
+Chẩn đoán phải là 1 câu tự nhiên, KHÔNG dùng dấu "+".
 Giữ dấu "/" trước phần tiền sử bệnh nền nếu có; nếu không có thì bỏ phần sau "/".
+
+Trả về JSON theo schema:
+{
+  "chandoan_xacdinh": "string",
+  "huong_dieu_tri": "string"
+}
 `.trim();
 
       const messages = [
@@ -1396,11 +1425,21 @@ Giữ dấu "/" trước phần tiền sử bệnh nền nếu có; nếu không
 
       if (!reply) return;
 
-      const finalDiag = _stripHistoryIfMissing(tomtat, reply);
+      const parsed = _extractJsonFromText(reply);
+      const diagRaw = parsed?.chandoan_xacdinh || parsed?.chandoan || parsed?.diagnosis || reply;
+      const huongRaw = parsed?.huong_dieu_tri || parsed?.huongdieutri || parsed?.treatment || "";
+
+      const finalDiag = _stripHistoryIfMissing(tomtat, diagRaw);
       _setTextareaValue(xacdinhEl, finalDiag);
+
+      const huongEl = document.getElementById("huongdieutri");
+      if (huongEl && huongRaw) {
+        _setTextareaValue(huongEl, String(huongRaw).trim());
+      }
     } catch (err) {
       console.warn("Final diagnosis AI failed:", err);
     } finally {
+      _setDiagPlaceholders(false, { cls: false, final: true });
       diagBtn.disabled = false;
     }
   });
