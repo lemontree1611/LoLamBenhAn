@@ -1245,6 +1245,12 @@ if (clsBtn) {
     const clsEl = document.getElementById("cls_canlamsang");
     if (!soEl || !pdEl || !clsEl) return;
 
+    const tomtatVal = (document.getElementById("tomtat")?.value || "").trim();
+    if (!tomtatVal) {
+      alert("Hãy nhập tóm tắt bệnh án trước.");
+      return;
+    }
+
     const so = soEl.value.trim();
     const pd = pdEl.value.trim();
     if (!so && !pd) return;
@@ -1326,6 +1332,76 @@ ${shortlistText}`
       console.warn("CLS AI support failed:", err);
     } finally {
       _setDiagPlaceholders(false);
+    }
+  });
+}
+
+// ===============================
+//  FINAL DIAGNOSIS AI (button)
+// ===============================
+const diagBtn = document.getElementById("btn-diag-ai");
+if (diagBtn) {
+  diagBtn.addEventListener("click", async () => {
+    const tomtat = (document.getElementById("tomtat")?.value || "").trim();
+    if (!tomtat) {
+      alert("Hãy nhập tóm tắt bệnh án trước.");
+      return;
+    }
+
+    const ketqua = (document.getElementById("ketqua")?.value || "").trim();
+    if (!ketqua) {
+      alert("Hãy nhập kết quả cận lâm sàng.");
+      return;
+    }
+
+    const xacdinhEl = document.getElementById("chandoanxacdinh");
+    if (!xacdinhEl) return;
+
+    if (xacdinhEl.value.trim() && !confirm("Ô chẩn đoán xác định đã có dữ liệu. Bạn muốn chẩn đoán lại không?")) {
+      return;
+    }
+
+    try {
+      diagBtn.disabled = true;
+
+      const FINAL_DIAG_PROMPT = `
+Bạn là bác sĩ nội khoa.
+Dựa trên tóm tắt bệnh án và kết quả cận lâm sàng, hãy đưa ra 1 chẩn đoán xác định.
+Trả về 1 câu duy nhất, không liệt kê, không xuống dòng.
+Giữ dấu "/" trước phần tiền sử bệnh nền nếu có; nếu không có thì bỏ phần sau "/".
+`.trim();
+
+      const messages = [
+        { role: "system", content: FINAL_DIAG_PROMPT },
+        { role: "user", content: `Tóm tắt bệnh án:\n${tomtat}\n\nKết quả cận lâm sàng:\n${ketqua}` }
+      ];
+
+      const response = await fetch(DIAG_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages })
+      });
+
+      const raw = await response.text();
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${raw.slice(0, 200)}`);
+
+      let data;
+      try { data = JSON.parse(raw); } catch (_) {
+        throw new Error(`Server không trả JSON. Nhận: ${raw.slice(0, 200)}`);
+      }
+
+      const reply = (data && typeof data.answer === "string" && data.answer.trim())
+        ? data.answer.trim()
+        : "";
+
+      if (!reply) return;
+
+      const finalDiag = _stripHistoryIfMissing(tomtat, reply);
+      _setTextareaValue(xacdinhEl, finalDiag);
+    } catch (err) {
+      console.warn("Final diagnosis AI failed:", err);
+    } finally {
+      diagBtn.disabled = false;
     }
   });
 }

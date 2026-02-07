@@ -9,7 +9,7 @@ Tủy đồ (chọc hút/sinh thiết tủy)
 
 [Sinh hóa]
 Đường huyết (đói, sau ăn, HbA1c)
-Chức năng gan: AST, ALT, ALP
+Chức năng gan: AST, ALT
 Định lượng bilirubin (tp, tt, gt)
 Chức năng thận: Ure, Creatinin, eGFR
 Điện giải đồ: Na⁺, K⁺, Cl⁻
