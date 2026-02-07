@@ -300,16 +300,27 @@ b) Khám trong:
     <textarea id="chandoanpd"></textarea>
 
     <label>4. Đề nghị cận lâm sàng và kết quả</label>
-    <div>a) Đề nghị cận lâm sàng</div>
-    <label>- Thường quy</label>
-    <textarea id="cls_thuongquy">CTM; TPTNT; glucose máu; định lượng AST, ALT, ure, creatinin huyết thanh; eGFR; ion đồ 3 thông số; ECG</textarea>
-    <label>- Chẩn đoán</label>
-    <textarea id="cls_chuandoan"></textarea>
+    <div class="row cls-row cls-search-row">
+      <div class="cls-label">a) Đề nghị cận lâm sàng</div>
+      <div class="cls-search-wrap">
+        <input id="cls-search" type="text" placeholder="Tìm CLS trong danh sách..." autocomplete="off" spellcheck="false" />
+        <div id="cls-suggest" class="cls-suggest" role="listbox" aria-label="Gợi ý cận lâm sàng"></div>
+      </div>
+      <button type="button" class="apple-icon-btn cls-ai-btn" id="btn-cls-ai" title="Trợ giúp AI">
+        AI trợ giúp
+      </button>
+    </div>
+    <textarea id="cls_canlamsang"></textarea>
 
     <div style="margin-top: 10px;">b) Kết quả</div>
     <textarea id="ketqua"></textarea>
 
-    <label>5. Chẩn đoán xác định</label>
+    <div class="row cls-row">
+      <label>5. Chẩn đoán xác định</label>
+      <button type="button" class="apple-icon-btn cls-ai-btn" id="btn-diag-ai" title="AI chẩn đoán">
+        AI chẩn đoán
+      </button>
+    </div>
     <textarea id="chandoanxacdinh"></textarea>
 
     <!-- ✅ ĐỔI VỊ TRÍ: ĐIỀU TRỊ TRƯỚC, TIÊN LƯỢNG SAU -->

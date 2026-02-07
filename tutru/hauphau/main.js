@@ -178,8 +178,7 @@ function getFormData() {
     tomtat: getField('tomtat'),
     chandoanso: getField('chandoanso'),
     chandoanpd: getField('chandoanpd'),
-    cls_thuongquy: getField('cls_thuongquy'),
-    cls_chuandoan: getField('cls_chuandoan'),
+    cls_canlamsang: getField('cls_canlamsang'),
     ketqua: getField('ketqua'),
     chandoanxacdinh: getField('chandoanxacdinh'),
     huongdieutri: getField('huongdieutri'),
@@ -300,9 +299,7 @@ function buildHTMLDoc() {
   <p><b>3. Chẩn đoán phân biệt:</b><br/>${nl2br(data.chandoanpd)}</p>
 
   <p><b>4. Đề nghị cận lâm sàng và kết quả:</b></p>
-  <p><b>a) Đề nghị cận lâm sàng:</b></p>
-  <p>- Thường quy: ${nl2br(data.cls_thuongquy)}</p>
-  <p>- Chẩn đoán: ${nl2br(data.cls_chuandoan)}</p>
+  <p><b>a) Đề nghị cận lâm sàng:</b><br/>${nl2br(data.cls_canlamsang)}</p>
   <p><b>b) Kết quả:</b><br/>${nl2br(data.ketqua)}</p>
 
   <p><b>5. Chẩn đoán xác định:</b><br/>${nl2br(data.chandoanxacdinh)}</p>
@@ -567,8 +564,7 @@ async function generateDocx() {
 
           paraHeading("4. ", "Đề nghị cận lâm sàng và kết quả:", { spacing: { ...basePara.spacing, before: 60 } }),
           paraHeading("a) ", "Đề nghị cận lâm sàng:", { spacing: { ...basePara.spacing, before: 20 } }),
-          para(`- Thường quy: ${data.cls_thuongquy}`),
-          para(`- Chẩn đoán: ${data.cls_chuandoan}`),
+          ...textToParagraphs(data.cls_canlamsang),
 
           paraHeading("b) ", "Kết quả:", { spacing: { ...basePara.spacing, before: 40, after: 0 } }),
           ...textToParagraphs(data.ketqua),
@@ -658,6 +654,8 @@ const chatMessages = document.getElementById("chat-messages");
 //  (Đổi domain nếu Render của bạn khác)
 // ===============================
 const CHAT_API_URL = "https://lolambenhan.onrender.com/chat";
+const CLS_LIST_URL = "../../source/cls.txt";
+let __CLS_LIST_CACHE__ = null;
 
 if (chatToggleBtn && chatBox) {
   chatToggleBtn.onclick = () => {
@@ -771,6 +769,192 @@ DỮ LIỆU TỪ FORM (tham khảo khi trả lời):
 `.trim();
 }
 
+function _normalizeClsName(s) {
+  return String(s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function _parseClsList(text) {
+  const lines = String(text || "").split(/\r?\n/);
+  const groups = [];
+  const groupMap = new Map();
+  let current = null;
+
+  const ensureGroup = (label) => {
+    const key = _normalizeClsName(label);
+    if (groupMap.has(key)) return groupMap.get(key);
+    const g = { label, items: [] };
+    groupMap.set(key, g);
+    groups.push(g);
+    return g;
+  };
+
+  for (let line of lines) {
+    line = String(line || "").trim();
+    if (!line) continue;
+    if (line.startsWith("#") || line.startsWith("//")) continue;
+
+    const header = line.match(/^\[(.+)\]$/);
+    if (header) {
+      current = ensureGroup(header[1].trim());
+      continue;
+    }
+
+    line = line.replace(/^\s*[-•\u2022]\s*/, "");
+    if (!line) continue;
+
+    if (!current) current = ensureGroup("Khác");
+    if (!current.items.includes(line)) current.items.push(line);
+  }
+
+  const flat = [];
+  const seen = new Set();
+  for (const g of groups) {
+    for (const item of g.items) {
+      const key = _normalizeClsName(item);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      flat.push(item);
+    }
+  }
+
+  return { groups, flat };
+}
+
+async function _loadClsList() {
+  if (__CLS_LIST_CACHE__ && __CLS_LIST_CACHE__.flat) return __CLS_LIST_CACHE__;
+  const res = await fetch(CLS_LIST_URL, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Không đọc được ${CLS_LIST_URL} (HTTP ${res.status})`);
+  const text = await res.text();
+  const data = _parseClsList(text);
+  __CLS_LIST_CACHE__ = data;
+  return data;
+}
+
+function _insertClsAtCursor(text) {
+  const el = document.getElementById("cls_canlamsang");
+  if (!el || el.disabled) return false;
+  const value = el.value || "";
+  const start = Number.isFinite(el.selectionStart) ? el.selectionStart : value.length;
+  const end = Number.isFinite(el.selectionEnd) ? el.selectionEnd : value.length;
+  const atEnd = start === value.length && end === value.length;
+  const prefix = (atEnd && value && !value.endsWith("\n")) ? "\n" : "";
+  const insert = `${prefix}${text}`;
+  const nextValue = value.slice(0, start) + insert + value.slice(end);
+  el.value = nextValue;
+  const caret = start + insert.length;
+  el.focus();
+  try { el.setSelectionRange(caret, caret); } catch (_) {}
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
+}
+
+function _filterClsItems(items, query, limit = 12) {
+  const q = _normalizeClsName(query);
+  if (!q) return [];
+  const out = [];
+  for (const item of (items || [])) {
+    if (_normalizeClsName(item).includes(q)) {
+      out.push(item);
+      if (out.length >= limit) break;
+    }
+  }
+  return out;
+}
+
+function _initClsSearch() {
+  const input = document.getElementById("cls-search");
+  const list = document.getElementById("cls-suggest");
+  if (!input || !list) return;
+
+  let clsItems = null;
+  let activeIndex = -1;
+
+  const closeList = () => {
+    list.innerHTML = "";
+    list.classList.remove("show");
+    activeIndex = -1;
+  };
+
+  const renderList = (items) => {
+    list.innerHTML = "";
+    if (!items || items.length === 0) {
+      list.classList.remove("show");
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    items.forEach((item, idx) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "cls-suggest-item";
+      btn.setAttribute("role", "option");
+      btn.setAttribute("data-index", String(idx));
+      btn.textContent = item;
+      btn.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        closeList();
+        input.value = "";
+        _insertClsAtCursor(item);
+      });
+      frag.appendChild(btn);
+    });
+    list.appendChild(frag);
+    list.classList.add("show");
+  };
+
+  const setActive = (index) => {
+    const items = Array.from(list.querySelectorAll(".cls-suggest-item"));
+    if (!items.length) return;
+    items.forEach((el, i) => el.classList.toggle("is-active", i === index));
+    if (index >= 0) items[index].scrollIntoView({ block: "nearest" });
+  };
+
+  const updateList = async () => {
+    const q = input.value.trim();
+    if (!q) return closeList();
+    if (!clsItems) {
+      const data = await _loadClsList();
+      clsItems = data?.flat || [];
+    }
+    const items = _filterClsItems(clsItems, q, 12);
+    activeIndex = -1;
+    renderList(items);
+  };
+
+  input.addEventListener("input", () => { updateList(); });
+  input.addEventListener("focus", () => { updateList(); });
+  input.addEventListener("keydown", (e) => {
+    const items = Array.from(list.querySelectorAll(".cls-suggest-item"));
+    if (!items.length) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      activeIndex = (activeIndex + 1) % items.length;
+      setActive(activeIndex);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      activeIndex = (activeIndex - 1 + items.length) % items.length;
+      setActive(activeIndex);
+    } else if (e.key === "Enter") {
+      if (activeIndex >= 0) {
+        e.preventDefault();
+        items[activeIndex].dispatchEvent(new MouseEvent("mousedown"));
+      }
+    } else if (e.key === "Escape") {
+      closeList();
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (e.target === input || list.contains(e.target)) return;
+    closeList();
+  });
+}
+
 async function sendMessage() {
   if (!chatInput || !chatMessages || !chatSend) return;
 
@@ -870,6 +1054,7 @@ if (chatInput) {
     if (e.key === "Enter") sendMessage();
   });
 }
+_initClsSearch();
 
 // ===============================
 //  SHARE ONLINE (WebSocket - Render, ws thuần)
@@ -949,6 +1134,7 @@ if (chatInput) {
     // ===== LOCK STATE =====
     // Mỗi tab/browser có 1 id riêng để phân biệt người đang sửa
     clientId: (crypto?.randomUUID?.() || ("c_" + Math.random().toString(36).slice(2))),
+    lockerName: "",
     // { [fieldId]: { by: string, at: number } }
     locks: {},
     onlineCount: null,
@@ -1088,18 +1274,20 @@ if (chatInput) {
 
   function getLockerLabel(by) {
     if (!by) return "người khác";
+    if (LOCKER_NAME_LIST.includes(by)) return by;
     const idx = _hashLockerId(by) % LOCKER_NAME_LIST.length;
     return LOCKER_NAME_LIST[idx];
   }
+  state.lockerName = getLockerLabel(state.clientId);
 
   function sendLock(fieldId) {
     if (!state.connected || !fieldId) return;
-    wsSend({ type: "lock", fieldId, by: state.clientId, at: Date.now() });
+    wsSend({ type: "lock", fieldId, by: state.lockerName, byId: state.clientId, at: Date.now() });
   }
 
   function sendUnlock(fieldId) {
     if (!state.connected || !fieldId) return;
-    wsSend({ type: "unlock", fieldId, by: state.clientId, at: Date.now() });
+    wsSend({ type: "unlock", fieldId, by: state.lockerName, byId: state.clientId, at: Date.now() });
   }
 
   function setFieldLockedUI(fieldId, locked, byWho) {
@@ -1132,10 +1320,15 @@ if (chatInput) {
 
   function applyLocks(locksObj) {
     if (!locksObj || typeof locksObj !== "object") return;
-    state.locks = { ...locksObj };
-    for (const [fieldId, meta] of Object.entries(state.locks)) {
-      if (!meta || meta.by === state.clientId) continue;
-      setFieldLockedUI(fieldId, true, meta.by);
+    state.locks = {};
+    for (const [fieldId, meta] of Object.entries(locksObj)) {
+      if (!meta) continue;
+      const rawBy = meta.by || "";
+      const byId = meta.byId || meta.clientId || rawBy;
+      const byName = LOCKER_NAME_LIST.includes(rawBy) ? rawBy : getLockerLabel(byId);
+      state.locks[fieldId] = { ...meta, by: byName, byId };
+      if (byId === state.clientId) continue;
+      setFieldLockedUI(fieldId, true, byName);
     }
   }
 
@@ -1150,6 +1343,11 @@ if (chatInput) {
         out[el.id] = (el.value ?? "");
       }
     }
+    // Backward-compat for clients still using old ids.
+    if (typeof out.cls_canlamsang === "string") {
+      if (!("cls_chuandoan" in out)) out.cls_chuandoan = out.cls_canlamsang;
+      if (!("cls_thuongquy" in out)) out.cls_thuongquy = "";
+    }
     return out;
   }
 
@@ -1159,11 +1357,17 @@ if (chatInput) {
     state.applyingRemote = true;
     try {
       for (const el of collectFields()) {
-        if (!(el.id in dataObj)) continue;
         // không overwrite field đang focus
         if (document.activeElement === el) continue;
 
-        const v = dataObj[el.id];
+        let v = dataObj[el.id];
+        // Backward-compat for payloads from old form (`cls_thuongquy` + `cls_chuandoan`).
+        if (el.id === "cls_canlamsang" && v === undefined) {
+          const oldDiag = (dataObj.cls_chuandoan ?? "").toString().trim();
+          const oldRoutine = (dataObj.cls_thuongquy ?? "").toString().trim();
+          v = [oldRoutine, oldDiag].filter(Boolean).join("\n");
+        }
+        if (v === undefined) continue;
 
         if (el.type === "checkbox") {
           el.checked = !!v;
@@ -1234,7 +1438,8 @@ if (chatInput) {
 
       // nếu field đang bị khoá bởi người khác thì không cho nhập
       const cur = state.locks?.[el.id];
-      if (cur && cur.by && cur.by !== state.clientId) {
+      const ownerId = cur?.byId || cur?.by;
+      if (cur && cur.by && ownerId !== state.clientId) {
         try { el.blur(); } catch (_) {}
         return;
       }
@@ -1310,20 +1515,22 @@ if (chatInput) {
 
       if (msg.type === "lock") {
         const fid = msg.fieldId;
-        const by = msg.by || msg.clientId;
-        if (fid && by && by !== state.clientId) {
-          state.locks[fid] = { by, at: msg.at || Date.now() };
-          setFieldLockedUI(fid, true, by);
+        const byName = msg.by || "";
+        const byId = msg.byId || msg.clientId || "";
+        if (fid && byName && byId !== state.clientId) {
+          state.locks[fid] = { by: byName, byId, at: msg.at || Date.now() };
+          setFieldLockedUI(fid, true, byName);
         }
         return;
       }
 
       if (msg.type === "unlock") {
         const fid = msg.fieldId;
-        const by = msg.by || msg.clientId;
+        const byName = msg.by || "";
+        const byId = msg.byId || msg.clientId || "";
 
         const cur = state.locks?.[fid];
-        if (fid && cur && (!by || cur.by === by)) {
+        if (fid && cur && (!byId || cur.byId === byId || cur.by === byName)) {
           delete state.locks[fid];
           setFieldLockedUI(fid, false);
         }
@@ -1333,10 +1540,11 @@ if (chatInput) {
       if (msg.type === "lock-denied") {
         // máy mình xin lock nhưng đã có người khác giữ
         const fid = msg.fieldId;
-        const by = msg.by;
-        if (fid && by && by !== state.clientId) {
-          state.locks[fid] = { by, at: msg.at || Date.now() };
-          setFieldLockedUI(fid, true, by);
+        const byName = msg.by || "";
+        const byId = msg.byId || msg.clientId || "";
+        if (fid && byName && byId !== state.clientId) {
+          state.locks[fid] = { by: byName, byId, at: msg.at || Date.now() };
+          setFieldLockedUI(fid, true, byName);
         }
         return;
       }

@@ -286,8 +286,7 @@ function getFormData() {
     tomtat: getField('tomtat'),
     chandoanso: getField('chandoanso'),
     chandoanpd: getField('chandoanpd'),
-    cls_thuongquy: getField('cls_thuongquy'),
-    cls_chuandoan: getField('cls_chuandoan'),
+    cls_canlamsang: getField('cls_canlamsang'),
     ketqua: getField('ketqua'),
     chandoanxacdinh: getField('chandoanxacdinh'),
 
@@ -387,9 +386,7 @@ function buildHTMLDoc() {
   <p><b>3. Chẩn đoán phân biệt:</b><br/>${nl2br(data.chandoanpd)}</p>
 
   <p><b>4. Đề nghị cận lâm sàng và kết quả:</b></p>
-  <p><b>a) Đề nghị cận lâm sàng:</b></p>
-  <p>- Thường quy: ${nl2br(data.cls_thuongquy)}</p>
-  <p>- Chẩn đoán: ${nl2br(data.cls_chuandoan)}</p>
+  <p><b>a) Đề nghị cận lâm sàng:</b><br/>${nl2br(data.cls_canlamsang)}</p>
   <p><b>b) Kết quả:</b><br/>${nl2br(data.ketqua)}</p>
 
   <p><b>5. Chẩn đoán xác định:</b><br/>${nl2br(data.chandoanxacdinh)}</p>
@@ -635,8 +632,7 @@ async function generateDocx() {
 
           paraHeading("4. ", "Đề nghị cận lâm sàng và kết quả:", { spacing: { ...basePara.spacing, before: 60 } }),
           paraHeading("a) ", "Đề nghị cận lâm sàng:", { spacing: { ...basePara.spacing, before: 20 } }),
-          para(`- Thường quy: ${data.cls_thuongquy}`),
-          para(`- Chẩn đoán: ${data.cls_chuandoan}`),
+          ...textToParagraphs(data.cls_canlamsang),
 
           paraHeading("b) ", "Kết quả:", { spacing: { ...basePara.spacing, before: 40, after: 0 } }),
           ...textToParagraphs(data.ketqua),
@@ -844,6 +840,949 @@ DỮ LIỆU TỪ FORM (tham khảo khi trả lời):
 - Tóm tắt bệnh án: ${tomtat || "(chưa có)"}
 - Chẩn đoán sơ bộ: ${chandoanso || "(chưa có)"}
 `.trim();
+}
+
+const DIAG_API_URL = CHAT_API_URL;
+const DIAG_DEBOUNCE_MS = 1200;
+const DIAG_MIN_LEN = 10;
+
+const DIAG_SYSTEM_PROMPT = `
+Bạn là bác sĩ nội khoa hỗ trợ soạn bệnh án.
+Từ tóm tắt bệnh án, hãy đề xuất:
+1) 1 chẩn đoán sơ bộ có khả năng cao nhất
+2) 2 chẩn đoán phân biệt có khả năng thấp hơn (khả năng thứ 2 và 3)
+
+Mỗi chẩn đoán phải là 1 câu tự nhiên, KHÔNG dùng dấu "+".
+Giữ dấu "/" trước phần tiền sử bệnh nền.
+Nếu tóm tắt bệnh án không có tiền sử/tiền căn thì bỏ phần từ dấu "/" trở về sau.
+Ví dụ đúng:
+"Viêm phổi cộng đồng mức độ trung bình do vi khuẩn, có yếu tố thúc đẩy hút thuốc lá / tiền sử COPD."
+
+Chỉ trả về JSON hợp lệ, không thêm giải thích.
+Schema:
+{
+  "chandoan_so": "string",
+  "chandoan_phanbiet": ["string", "string"]
+}
+`.trim();
+
+let autoDiagTimer = 0;
+let autoDiagSeq = 0;
+let lastTomtatRequested = "";
+
+function _extractJsonFromText(text) {
+  if (!text) return null;
+  const trimmed = String(text).trim();
+
+  const tryParse = (s) => {
+    try { return JSON.parse(s); } catch (_) { return null; }
+  };
+
+  const fixJsonNewlines = (s) => {
+    const raw = String(s || "");
+    let out = "";
+    let inString = false;
+    let escape = false;
+    for (let i = 0; i < raw.length; i++) {
+      const ch = raw[i];
+      if (inString) {
+        if (escape) { out += ch; escape = false; continue; }
+        if (ch === "\\") { out += ch; escape = true; continue; }
+        if (ch === "\"") { out += ch; inString = false; continue; }
+        if (ch === "\n") { out += "\\n"; continue; }
+        if (ch === "\r") {
+          out += "\\n";
+          if (raw[i + 1] === "\n") i++;
+          continue;
+        }
+        out += ch;
+      } else {
+        if (ch === "\"") { inString = true; out += ch; continue; }
+        out += ch;
+      }
+    }
+    return out;
+  };
+
+  const tryParseFixed = (s) => {
+    const fixed = fixJsonNewlines(s);
+    if (fixed !== s) return tryParse(fixed);
+    return null;
+  };
+
+  let parsed = tryParse(trimmed);
+  if (parsed) return parsed;
+  parsed = tryParseFixed(trimmed);
+  if (parsed) return parsed;
+
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced && fenced[1]) {
+    const raw = fenced[1].trim();
+    parsed = tryParse(raw);
+    if (parsed) return parsed;
+    parsed = tryParseFixed(raw);
+    if (parsed) return parsed;
+  }
+
+  const first = trimmed.indexOf("{");
+  const last = trimmed.lastIndexOf("}");
+  if (first >= 0 && last > first) {
+    const slice = trimmed.slice(first, last + 1);
+    parsed = tryParse(slice);
+    if (parsed) return parsed;
+    parsed = tryParseFixed(slice);
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+function _cleanDiagLine(s) {
+  return String(s || "")
+    .replace(/^\s*[-–—•\d\)\.]+\s*/, "")
+    .trim();
+}
+
+function _splitDiagList(text) {
+  return String(text || "")
+    .split(/\r?\n|;|•|\u2022|\d+\)|\d+\./)
+    .map(_cleanDiagLine)
+    .filter(Boolean);
+}
+
+function _formatCanLamSang(val) {
+  if (!val) return "";
+  if (typeof val === "string") return val.trim();
+
+  if (typeof val === "object") {
+    const a = val.a ?? val.chandoan ?? val.diagnosis ?? "";
+    const b = val.b ?? val.timnguyennhan ?? val.nguyennhan ?? val.cause ?? "";
+    const c = val.c ?? val.hotro ?? val.dieutri ?? val.support ?? "";
+    const lines = [
+      a ? `a) Chẩn đoán: ${String(a).trim()}` : "a) Chẩn đoán:",
+      b ? `b) Tìm nguyên nhân: ${String(b).trim()}` : "b) Tìm nguyên nhân:",
+      c ? `c) Hỗ trợ điều trị: ${String(c).trim()}` : "c) Hỗ trợ điều trị:",
+    ];
+    return lines.join("\n");
+  }
+
+  return String(val).trim();
+}
+
+const CLS_LIST_URL = "../../source/cls.txt";
+let __CLS_LIST_CACHE__ = null;
+const CLS_REQUIRED = [
+  "Công thức máu",
+  "Chức năng gan",
+  "Chức năng thận",
+  "Điện giải đồ",
+];
+
+function _normalizeClsName(s) {
+  return String(s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function _parseClsList(text) {
+  const lines = String(text || "").split(/\r?\n/);
+  const groups = [];
+  const groupMap = new Map();
+  let current = null;
+
+  const ensureGroup = (label) => {
+    const key = _normalizeClsName(label);
+    if (groupMap.has(key)) return groupMap.get(key);
+    const g = { label, items: [] };
+    groupMap.set(key, g);
+    groups.push(g);
+    return g;
+  };
+
+  for (let line of lines) {
+    line = String(line || "").trim();
+    if (!line) continue;
+    if (line.startsWith("#") || line.startsWith("//")) continue;
+
+    const header = line.match(/^\[(.+)\]$/);
+    if (header) {
+      current = ensureGroup(header[1].trim());
+      continue;
+    }
+
+    line = line.replace(/^\s*[-•\u2022]\s*/, "");
+    if (!line) continue;
+
+    if (!current) current = ensureGroup("Khác");
+    if (!current.items.includes(line)) current.items.push(line);
+  }
+
+  const flat = [];
+  const seen = new Set();
+  for (const g of groups) {
+    for (const item of g.items) {
+      const key = _normalizeClsName(item);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      flat.push(item);
+    }
+  }
+
+  return { groups, flat };
+}
+
+async function _loadClsList() {
+  if (__CLS_LIST_CACHE__ && __CLS_LIST_CACHE__.flat) return __CLS_LIST_CACHE__;
+  const res = await fetch(CLS_LIST_URL, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Không đọc được ${CLS_LIST_URL} (HTTP ${res.status})`);
+  const text = await res.text();
+  const data = _parseClsList(text);
+  __CLS_LIST_CACHE__ = data;
+  return data;
+}
+
+function _insertClsAtCursor(text) {
+  const el = document.getElementById("cls_canlamsang");
+  if (!el || el.disabled) return false;
+  const value = el.value || "";
+  const start = Number.isFinite(el.selectionStart) ? el.selectionStart : value.length;
+  const end = Number.isFinite(el.selectionEnd) ? el.selectionEnd : value.length;
+  const atEnd = start === value.length && end === value.length;
+  const prefix = (atEnd && value && !value.endsWith("\n")) ? "\n" : "";
+  const insert = `${prefix}${text}`;
+  const nextValue = value.slice(0, start) + insert + value.slice(end);
+  el.value = nextValue;
+  const caret = start + insert.length;
+  el.focus();
+  try { el.setSelectionRange(caret, caret); } catch (_) {}
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
+}
+
+function _filterClsItems(items, query, limit = 12) {
+  const q = _normalizeClsName(query);
+  if (!q) return [];
+  const out = [];
+  for (const item of (items || [])) {
+    if (_normalizeClsName(item).includes(q)) {
+      out.push(item);
+      if (out.length >= limit) break;
+    }
+  }
+  return out;
+}
+
+function _initClsSearch() {
+  const input = document.getElementById("cls-search");
+  const list = document.getElementById("cls-suggest");
+  if (!input || !list) return;
+
+  let clsItems = null;
+  let activeIndex = -1;
+
+  const closeList = () => {
+    list.innerHTML = "";
+    list.classList.remove("show");
+    activeIndex = -1;
+  };
+
+  const renderList = (items) => {
+    list.innerHTML = "";
+    if (!items || items.length === 0) {
+      list.classList.remove("show");
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    items.forEach((item, idx) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "cls-suggest-item";
+      btn.setAttribute("role", "option");
+      btn.setAttribute("data-index", String(idx));
+      btn.textContent = item;
+      btn.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        closeList();
+        input.value = "";
+        _insertClsAtCursor(item);
+      });
+      frag.appendChild(btn);
+    });
+    list.appendChild(frag);
+    list.classList.add("show");
+  };
+
+  const setActive = (index) => {
+    const items = Array.from(list.querySelectorAll(".cls-suggest-item"));
+    if (!items.length) return;
+    items.forEach((el, i) => el.classList.toggle("is-active", i === index));
+    if (index >= 0) items[index].scrollIntoView({ block: "nearest" });
+  };
+
+  const updateList = async () => {
+    const q = input.value.trim();
+    if (!q) return closeList();
+    if (!clsItems) {
+      const data = await _loadClsList();
+      clsItems = data?.flat || [];
+    }
+    const items = _filterClsItems(clsItems, q, 12);
+    activeIndex = -1;
+    renderList(items);
+  };
+
+  input.addEventListener("input", () => { updateList(); });
+  input.addEventListener("focus", () => { updateList(); });
+  input.addEventListener("keydown", (e) => {
+    const items = Array.from(list.querySelectorAll(".cls-suggest-item"));
+    if (!items.length) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      activeIndex = (activeIndex + 1) % items.length;
+      setActive(activeIndex);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      activeIndex = (activeIndex - 1 + items.length) % items.length;
+      setActive(activeIndex);
+    } else if (e.key === "Enter") {
+      if (activeIndex >= 0) {
+        e.preventDefault();
+        items[activeIndex].dispatchEvent(new MouseEvent("mousedown"));
+      }
+    } else if (e.key === "Escape") {
+      closeList();
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (e.target === input || list.contains(e.target)) return;
+    closeList();
+  });
+}
+
+const CLS_GROUP_DEFS = [
+  { key: "hema", label: "Huyết học & Đông máu", itemRe: /(công thức máu|hồng cầu|đông máu|d-dimer|tủy đồ|cầm máu)/i, signals: /(thiếu máu|xuất huyết|đông máu|d-dimer|bạch cầu)/i },
+  { key: "biochem", label: "Sinh hóa", itemRe: /(đường huyết|chức năng gan|chức năng thận|điện giải|ca|mg|phospho|mỡ máu|men tim|acid uric|albumin|lactate)/i, signals: /(gan|thận|đái tháo đường|đường huyết|điện giải|mỡ máu)/i },
+  { key: "inflamm", label: "Viêm & Miễn dịch", itemRe: /(crp|procalcitonin|rf|anti-ccp|ana|anti-dsdna|bổ thể|igg|iga|igm|ige)/i, signals: /(viêm|nhiễm|sốt|tự miễn|khớp)/i },
+  { key: "micro", label: "Vi sinh", itemRe: /(soi|cấy|kháng sinh đồ|pcr vi sinh|kí sinh trùng|test nhanh)/i, signals: /(nhiễm|sốt|vi khuẩn|virus)/i },
+  { key: "urine", label: "Nước tiểu", itemRe: /(nước tiểu|protein niệu|microalbumin|cặn addis)/i, signals: /(tiểu|niệu|thận)/i },
+  { key: "stool", label: "Phân", itemRe: /(soi phân|máu ẩn trong phân)/i, signals: /(tiêu chảy|đại tràng|phân)/i },
+  { key: "path", label: "Giải phẫu bệnh", itemRe: /(sinh thiết|tế bào học|hóa mô|sinh học phân tử)/i, signals: /(u|ung thư|khối u|tân sinh)/i },
+  { key: "xray", label: "X-quang", itemRe: /^x-quang/i, signals: /(phổi|ngực|xương|chấn thương)/i },
+  { key: "us", label: "Siêu âm", itemRe: /^siêu âm/i, signals: /(gan|mật|tụy|thận|bụng|tim)/i },
+  { key: "ctmri", label: "CT/MRI/Xạ hình", itemRe: /(ct|mri|pet\/ct|spect|xạ hình)/i, signals: /(não|sọ|u|ung thư|mạch máu|đột quỵ)/i },
+  { key: "cardio", label: "Tim mạch", itemRe: /(điện tâm đồ|holter|siêu âm tim|nghiệm pháp|thông tim)/i, signals: /(tim|mạch|suy tim|nhồi máu|tăng huyết áp)/i },
+  { key: "pulm", label: "Hô hấp", itemRe: /(chức năng hô hấp|dlco|nội soi phế quản)/i, signals: /(phổi|hô hấp|hen|copd|khó thở|đờm)/i },
+  { key: "endo", label: "Nội soi tiêu hóa", itemRe: /(nội soi dạ dày|nội soi đại tràng|ercp|đo pH)/i, signals: /(dạ dày|ruột|đại tràng|tiêu hóa)/i },
+  { key: "neuro", label: "Thần kinh", itemRe: /(điện não|điện cơ|điện thế gợi)/i, signals: /(não|đột quỵ|động kinh|co giật|yếu liệt)/i },
+  { key: "ent", label: "Tai mũi họng", itemRe: /(tai mũi họng|thính lực)/i, signals: /(tai|mũi|họng)/i },
+  { key: "ob", label: "Sản phụ", itemRe: /(tim thai|cổ tử cung|nitrazin)/i, signals: /(thai|sản|phụ khoa)/i },
+  { key: "interv", label: "Thủ thuật & Can thiệp", itemRe: /(can thiệp|thủ thuật chẩn đoán|chọc dò|chọc hút|nội soi can thiệp)/i, signals: /(dịch|chọc dò|can thiệp)/i },
+];
+
+function _pickClsShortlist(clsData, diagText, maxItems = 20) {
+  const groups = clsData?.groups || [];
+  const priorityLabels = new Set();
+  const alwaysLabels = new Set([
+    _normalizeClsName("Huyết học & Đông máu"),
+    _normalizeClsName("Sinh hóa"),
+    _normalizeClsName("Viêm & Miễn dịch"),
+  ]);
+
+  for (const def of CLS_GROUP_DEFS) {
+    if (def.signals && def.signals.test(diagText)) {
+      priorityLabels.add(_normalizeClsName(def.label));
+    }
+  }
+
+  const ordered = [];
+  const added = new Set();
+  const addIf = (pred) => {
+    for (const g of groups) {
+      const key = _normalizeClsName(g.label);
+      if (added.has(key)) continue;
+      if (!pred(key)) continue;
+      ordered.push(g);
+      added.add(key);
+    }
+  };
+
+  addIf(k => priorityLabels.has(k));
+  addIf(k => alwaysLabels.has(k) && !priorityLabels.has(k));
+  addIf(k => !priorityLabels.has(k) && !alwaysLabels.has(k));
+
+  const picked = new Set();
+
+  for (const g of ordered) {
+    if (picked.size >= maxItems) break;
+    const items = [];
+    for (const item of g.items) {
+      if (picked.size >= maxItems) break;
+      if (picked.has(item)) continue;
+      picked.add(item);
+      items.push(item);
+    }
+  }
+
+  const requiredCanon = _getRequiredCanonical(clsData.flat || []);
+  for (const r of requiredCanon) picked.add(r);
+
+  const orderedKeys = new Set(ordered.map(g => _normalizeClsName(g.label)));
+  const orderedAll = ordered.slice();
+  for (const g of groups) {
+    const key = _normalizeClsName(g.label);
+    if (orderedKeys.has(key)) continue;
+    if (g.items.some(it => picked.has(it))) orderedAll.push(g);
+  }
+
+  const groupedOut = [];
+  for (const g of orderedAll) {
+    const items = g.items.filter(it => picked.has(it));
+    if (items.length) groupedOut.push({ label: g.label, items });
+  }
+
+  return { flat: Array.from(picked), groupedOut };
+}
+
+function _matchCanonicalCls(name, canonList, canonMap) {
+  const n = _normalizeClsName(name);
+  if (!n) return null;
+  if (canonMap.has(n)) return canonMap.get(n);
+
+  let best = null;
+  let bestScore = Infinity;
+  for (const c of canonList) {
+    const cn = _normalizeClsName(c);
+    if (!cn) continue;
+    if (cn.includes(n) || n.includes(cn)) {
+      const score = Math.abs(cn.length - n.length);
+      if (score < bestScore) {
+        bestScore = score;
+        best = c;
+      }
+    }
+  }
+  return best;
+}
+
+function _getRequiredCanonical(canonList) {
+  const canonMap = new Map(canonList.map(c => [_normalizeClsName(c), c]));
+  const out = [];
+  for (const req of CLS_REQUIRED) {
+    const c = _matchCanonicalCls(req, canonList, canonMap);
+    if (c && !out.includes(c)) out.push(c);
+  }
+  return out;
+}
+
+function _parseClsItems(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val.flat().map(v => String(v || "").trim()).filter(Boolean);
+  return String(val || "")
+    .split(/\r?\n|;|•|\u2022/)
+    .map(s => String(s || "").trim())
+    .filter(Boolean);
+}
+
+function _parseClsReply(reply, canonList) {
+  const json = _extractJsonFromText(reply);
+  if (json) {
+    const a = json.chan_doan ?? json.chandoan ?? json.diagnosis ?? json.a;
+    const b = json.tim_nguyen_nhan ?? json.nguyen_nhan ?? json.cause ?? json.b;
+    const c = json.ho_tro_dieu_tri ?? json.ho_tro ?? json.dieu_tri ?? json.support ?? json.c;
+    return {
+      a: _parseClsItems(a),
+      b: _parseClsItems(b),
+      c: _parseClsItems(c),
+    };
+  }
+
+  const lines = String(reply || "").split(/\r?\n/);
+  const pick = (re) => {
+    const line = lines.find(l => re.test(l));
+    if (!line) return [];
+    const m = line.match(/:\s*(.*)$/);
+    return _parseClsItems(m ? m[1] : "");
+  };
+  return {
+    a: pick(/chẩn\s*đoán/i),
+    b: pick(/tìm\s*nguyên\s*nhân/i),
+    c: pick(/hỗ\s*trợ\s*điều\s*trị/i),
+  };
+}
+
+function _formatClsOutput(parsed, canonList, allowedList = canonList) {
+  const allowedSet = new Set(allowedList.map(c => _normalizeClsName(c)));
+  const canonMap = new Map(canonList.map(c => [_normalizeClsName(c), c]));
+  const mapItems = (arr) => {
+    const out = [];
+    for (const raw of arr) {
+      const c = _matchCanonicalCls(raw, canonList, canonMap);
+      if (!c) continue;
+      if (!allowedSet.has(_normalizeClsName(c))) continue;
+      if (!out.includes(c)) out.push(c);
+    }
+    return out;
+  };
+  const a = mapItems(parsed.a || []);
+  const b = mapItems(parsed.b || []);
+  const c = mapItems(parsed.c || []);
+  const requiredCanon = _getRequiredCanonical(canonList).filter(c => allowedSet.has(_normalizeClsName(c)));
+  for (const r of requiredCanon) {
+    if (a.includes(r) || b.includes(r) || c.includes(r)) continue;
+    a.push(r);
+  }
+  return [
+    `- Chẩn đoán: ${a.join("; ")}`.trim(),
+    `- Tìm nguyên nhân: ${b.join("; ")}`.trim(),
+    `- Hỗ trợ điều trị: ${c.join("; ")}`.trim(),
+  ].join("\n");
+}
+
+function _parseDiagnosisReply(reply) {
+  const json = _extractJsonFromText(reply);
+  if (json) {
+    const so = String(
+      json.chandoan_so ??
+      json.chandoanSo ??
+      json.so_bo ??
+      json.sobo ??
+      json.primary ??
+      ""
+    ).trim();
+
+    let pd = json.chandoan_phanbiet ?? json.phanbiet ?? json.phan_biet ?? json.differentials ?? [];
+    if (typeof pd === "string") pd = _splitDiagList(pd);
+    if (!Array.isArray(pd)) pd = [];
+
+    const phanBiet = pd.map(_cleanDiagLine).filter(Boolean).slice(0, 2);
+    return { soBo: so, phanBiet, canLamSang: "" };
+  }
+
+  let soBo = "";
+  let phanBiet = [];
+
+  const soMatch = String(reply || "").match(/chẩn\s*đoán\s*sơ\s*bộ\s*:?\s*(.+)/i);
+  if (soMatch && soMatch[1]) soBo = soMatch[1].trim();
+
+  const pdMatch = String(reply || "").match(/chẩn\s*đoán\s*phân\s*biệt\s*:?\s*([\s\S]*)/i);
+  if (pdMatch && pdMatch[1]) phanBiet = _splitDiagList(pdMatch[1]);
+
+  if (!soBo || phanBiet.length === 0) {
+    const lines = _splitDiagList(reply);
+    if (!soBo && lines.length) soBo = lines[0];
+    if (phanBiet.length === 0 && lines.length > 1) phanBiet = lines.slice(1);
+  }
+
+  return {
+    soBo: (soBo || "").trim(),
+    phanBiet: phanBiet.map(_cleanDiagLine).filter(Boolean).slice(0, 2),
+    canLamSang: "",
+  };
+}
+
+function _setTextareaValue(el, value) {
+  if (!el || el.disabled) return false;
+  el.value = value;
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
+}
+
+function _formatHuongDieuTriList(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return "";
+
+  let parts = raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  if (parts.length <= 1) {
+    const semi = raw.split(/\s*;\s*/).map(s => s.trim()).filter(Boolean);
+    if (semi.length > 1) parts = semi;
+  }
+
+  const normalize = (s) => s
+    .replace(/^[-•*]\s*/, "")
+    .replace(/^\d+[\).\-\s]+/, "")
+    .trim();
+
+  if (parts.length <= 1) {
+    const one = normalize(parts[0] || raw);
+    return one ? `- ${one}` : "";
+  }
+
+  return parts
+    .map(normalize)
+    .filter(Boolean)
+    .map(s => `- ${s}`)
+    .join("\n");
+}
+
+function _stripHistoryIfMissing(tomtat, text) {
+  const hasHistory = /(tiền\s*sử|tiền\s*căn|bệnh\s*nền|tien\s*su|tien\s*can|benh\s*nen)/i.test(String(tomtat || ""));
+  if (hasHistory) return String(text || "").trim();
+  return String(text || "").replace(/\s*\/\s*[^/]*$/g, "").trim();
+}
+
+function _stripPatientPrefix(text) {
+  return String(text || "")
+    .replace(/^\s*(bệnh\s*nhân|bn)\s*(bị|được\s*chẩn\s*đoán|chẩn\s*đoán\s*là)\s*[:\-]?\s*/i, "")
+    .trim();
+}
+
+function _setDiagPlaceholders(loading, opts = {}) {
+  const soEl = document.getElementById("chandoanso");
+  const pdEl = document.getElementById("chandoanpd");
+  const clsEl = document.getElementById("cls_canlamsang");
+  const xdEl = document.getElementById("chandoanxacdinh");
+  const huongEl = document.getElementById("huongdieutri");
+  const msg = "Đợi xíu, bot LÒ sẽ chẩn đoán giúp bạn...";
+  const clsMsg = "Đợi xíu, để LÒ đề nghị cận lâm sàng cho...";
+  const finalMsg = "Xem bot LÒ trổ tài nè";
+  const useCls = opts.cls !== false;
+  const useFinal = opts.final === true;
+
+  [soEl, pdEl].forEach((el) => {
+    if (!el) return;
+    if (loading) {
+      if (el.getAttribute("data-old-placeholder") === null) {
+        el.setAttribute("data-old-placeholder", el.placeholder || "");
+      }
+      el.placeholder = msg;
+    } else {
+      const old = el.getAttribute("data-old-placeholder");
+      if (old !== null) el.placeholder = old;
+      el.removeAttribute("data-old-placeholder");
+    }
+  });
+
+  if (clsEl && useCls) {
+    if (loading) {
+      if (clsEl.getAttribute("data-old-placeholder") === null) {
+        clsEl.setAttribute("data-old-placeholder", clsEl.placeholder || "");
+      }
+      clsEl.placeholder = clsMsg;
+    } else {
+      const old = clsEl.getAttribute("data-old-placeholder");
+      if (old !== null) clsEl.placeholder = old;
+      else clsEl.placeholder = "";
+      clsEl.removeAttribute("data-old-placeholder");
+    }
+  }
+
+  if (!useFinal) return;
+  [xdEl, huongEl].forEach((el) => {
+    if (!el) return;
+    if (loading) {
+      if (el.getAttribute("data-old-placeholder") === null) {
+        el.setAttribute("data-old-placeholder", el.placeholder || "");
+      }
+      el.placeholder = finalMsg;
+    } else {
+      const old = el.getAttribute("data-old-placeholder");
+      if (old !== null) el.placeholder = old;
+      el.removeAttribute("data-old-placeholder");
+    }
+  });
+}
+
+function scheduleAutoDiagnosis(immediate = false) {
+  const tomtatEl = document.getElementById("tomtat");
+  if (!tomtatEl) return;
+
+  const tomtat = tomtatEl.value.trim();
+  if (!tomtat || tomtat.length < DIAG_MIN_LEN) return;
+
+  // nếu không đổi tóm tắt thì không gọi lại
+  if (tomtat === lastTomtatRequested && !autoDiagTimer) return;
+
+  if (autoDiagTimer) clearTimeout(autoDiagTimer);
+  autoDiagTimer = setTimeout(() => {
+    autoDiagTimer = 0;
+    runAutoDiagnosis(tomtat);
+  }, immediate ? 0 : DIAG_DEBOUNCE_MS);
+}
+
+async function runAutoDiagnosis(tomtat) {
+  const soEl = document.getElementById("chandoanso");
+  const pdEl = document.getElementById("chandoanpd");
+  if (!soEl || !pdEl) return;
+
+  const before = { so: soEl.value, pd: pdEl.value };
+  const requestId = ++autoDiagSeq;
+  lastTomtatRequested = tomtat;
+
+  try {
+    _setDiagPlaceholders(true, { cls: false });
+
+    const messages = [
+      { role: "system", content: DIAG_SYSTEM_PROMPT },
+      { role: "user", content: `Tóm tắt bệnh án:\n${tomtat}\n\nTrả về JSON theo schema.` }
+    ];
+
+    const response = await fetch(DIAG_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages })
+    });
+
+    const raw = await response.text();
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${raw.slice(0, 200)}`);
+
+    let data;
+    try { data = JSON.parse(raw); } catch (_) {
+      throw new Error(`Server không trả JSON. Nhận: ${raw.slice(0, 200)}`);
+    }
+
+    const reply = (data && typeof data.answer === "string" && data.answer.trim())
+      ? data.answer.trim()
+      : "";
+
+    if (!reply) return;
+
+    // nếu có request mới hơn thì bỏ qua
+    if (requestId !== autoDiagSeq) return;
+
+    // nếu tóm tắt đã đổi trong lúc chưa xong thì bỏ qua
+    const curTomtat = (document.getElementById("tomtat")?.value || "").trim();
+    if (curTomtat && curTomtat !== tomtat) return;
+
+    const parsed = _parseDiagnosisReply(reply);
+    if (!parsed || (!parsed.soBo && (!parsed.phanBiet || parsed.phanBiet.length === 0))) return;
+
+    const soBoFinal = _stripHistoryIfMissing(tomtat, parsed.soBo);
+    const phanBietFinal = (parsed.phanBiet || []).map(x => _stripHistoryIfMissing(tomtat, x)).filter(Boolean);
+
+    const canSetSo = soBoFinal
+      && document.activeElement !== soEl
+      && (soEl.value === before.so || !soEl.value.trim());
+
+    const canSetPd = phanBietFinal && phanBietFinal.length
+      && document.activeElement !== pdEl
+      && (pdEl.value === before.pd || !pdEl.value.trim());
+
+    if (canSetSo) _setTextareaValue(soEl, soBoFinal);
+    if (canSetPd) _setTextareaValue(pdEl, phanBietFinal.slice(0, 2).join("\n"));
+  } catch (err) {
+    console.warn("Auto diagnosis failed:", err);
+  } finally {
+    _setDiagPlaceholders(false, { cls: false });
+  }
+}
+
+// Chỉ auto khi người dùng rời ô tóm tắt (blur)
+const tomtatEl = document.getElementById("tomtat");
+if (tomtatEl) {
+  tomtatEl.addEventListener("blur", (e) => {
+    if (e && e.isTrusted === false) return;
+    scheduleAutoDiagnosis(true);
+  });
+}
+
+// ===============================
+//  CLS AI SUPPORT (button)
+// ===============================
+_initClsSearch();
+
+const clsBtn = document.getElementById("btn-cls-ai");
+if (clsBtn) {
+  clsBtn.addEventListener("click", async () => {
+    const soEl = document.getElementById("chandoanso");
+    const pdEl = document.getElementById("chandoanpd");
+    const clsEl = document.getElementById("cls_canlamsang");
+    if (!soEl || !pdEl || !clsEl) return;
+
+    const tomtatVal = (document.getElementById("tomtat")?.value || "").trim();
+    if (!tomtatVal) {
+      alert("Hãy nhập tóm tắt bệnh án trước.");
+      return;
+    }
+
+    const so = soEl.value.trim();
+    const pd = pdEl.value.trim();
+    if (!so && !pd) return;
+
+    const hasData = !!clsEl.value.trim();
+    if (hasData && !confirm("Ô cận lâm sàng đã có dữ liệu. Bạn muốn ghi đè không?")) {
+      return;
+    }
+
+    try {
+      _setDiagPlaceholders(true);
+
+      const clsData = await _loadClsList();
+      if (!clsData || !clsData.flat || clsData.flat.length === 0) {
+        alert("Danh sách cận lâm sàng trong source/cls.txt đang trống.");
+        return;
+      }
+
+      const diagText = `${so}\n${pd}`.trim();
+      const shortlist = _pickClsShortlist(clsData, diagText, 20);
+      const shortlistText = shortlist.groupedOut.map(g => `${g.label}: ${g.items.join("; ")}`).join("\n");
+
+      const CLS_SYSTEM_PROMPT = `
+Bạn là bác sĩ nội khoa hỗ trợ soạn bệnh án.
+Dựa trên chẩn đoán sơ bộ và chẩn đoán phân biệt, hãy đề xuất cận lâm sàng hợp lý,
+sắp xếp theo đúng 3 nhóm:
+- Chẩn đoán
+- Tìm nguyên nhân
+- Hỗ trợ điều trị
+
+CHỈ ĐƯỢC chọn các mục có trong danh sách CLS đã lọc. Không tự thêm mục mới.
+Trả về JSON theo schema:
+{
+  "chan_doan": ["CLS 1", "CLS 2"],
+  "tim_nguyen_nhan": ["CLS 3"],
+  "ho_tro_dieu_tri": ["CLS 4"]
+}
+`.trim();
+
+      const messages = [
+        { role: "system", content: CLS_SYSTEM_PROMPT },
+        { role: "user", content:
+`Chẩn đoán sơ bộ: ${so || "(chưa có)"}
+Chẩn đoán phân biệt:
+${pd || "(chưa có)"}
+
+Danh sách CLS đã lọc (tối đa 20 mục, chia theo nhóm):
+${shortlistText}`
+        }
+      ];
+
+      const response = await fetch(DIAG_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages })
+      });
+
+      const raw = await response.text();
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${raw.slice(0, 200)}`);
+
+      let data;
+      try { data = JSON.parse(raw); } catch (_) {
+        throw new Error(`Server không trả JSON. Nhận: ${raw.slice(0, 200)}`);
+      }
+
+      const reply = (data && typeof data.answer === "string" && data.answer.trim())
+        ? data.answer.trim()
+        : "";
+
+      if (!reply) return;
+
+      const parsed = _parseClsReply(reply, clsData.flat);
+      const formatted = _formatClsOutput(parsed, clsData.flat, shortlist.flat);
+
+      if (document.activeElement !== clsEl) {
+        _setTextareaValue(clsEl, formatted);
+      }
+    } catch (err) {
+      console.warn("CLS AI support failed:", err);
+    } finally {
+      _setDiagPlaceholders(false);
+    }
+  });
+}
+
+// ===============================
+//  FINAL DIAGNOSIS AI (button)
+// ===============================
+const diagBtn = document.getElementById("btn-diag-ai");
+if (diagBtn) {
+  diagBtn.addEventListener("click", async () => {
+    const tomtat = (document.getElementById("tomtat")?.value || "").trim();
+    if (!tomtat) {
+      alert("Hãy nhập tóm tắt bệnh án trước.");
+      return;
+    }
+
+    const ketqua = (document.getElementById("ketqua")?.value || "").trim();
+    if (!ketqua) {
+      alert("Hãy nhập kết quả cận lâm sàng.");
+      return;
+    }
+
+    const xacdinhEl = document.getElementById("chandoanxacdinh");
+    if (!xacdinhEl) return;
+
+    if (xacdinhEl.value.trim()) {
+      const ok = confirm("Ô chẩn đoán xác định đã có dữ liệu. Bạn muốn chẩn đoán lại không?");
+      if (!ok) return;
+      _setTextareaValue(xacdinhEl, "");
+      const huongClearEl = document.getElementById("huongdieutri");
+      if (huongClearEl) _setTextareaValue(huongClearEl, "");
+    }
+
+    try {
+      diagBtn.disabled = true;
+      _setDiagPlaceholders(true, { cls: false, final: true });
+
+      const FINAL_DIAG_PROMPT = `
+Bạn là bác sĩ nội khoa.
+Dựa trên tóm tắt bệnh án và kết quả cận lâm sàng, hãy trả về:
+1) 1 chẩn đoán xác định (1 câu duy nhất, theo form như chẩn đoán sơ bộ)
+2) Hướng điều trị (liệt kê từng ý cụ thể, càng chuyên khoa càng tốt)
+
+Yêu cầu cho "huong_dieu_tri":
+- Dạng gạch đầu dòng, mỗi ý 1 dòng, bắt đầu bằng "- ".
+- Mỗi ý ngắn gọn, cụ thể, ưu tiên: xử trí ban đầu/ổn định, điều trị nguyên nhân, điều trị triệu chứng, theo dõi - đánh giá đáp ứng, phòng ngừa biến chứng, tiêu chí hội chẩn/chuyển tuyến, tư vấn/dặn dò (chọn phù hợp ca bệnh).
+- Không viết đoạn văn dài, không đánh số.
+
+Chẩn đoán phải là 1 câu tự nhiên, KHÔNG dùng dấu "+".
+Không bắt đầu bằng "Bệnh nhân..." hay "BN...".
+Giữ dấu "/" trước phần tiền sử bệnh nền nếu có; nếu không có thì bỏ phần sau "/".
+
+Trả về JSON theo schema:
+{
+  "chandoan_xacdinh": "string",
+  "huong_dieu_tri": "string"
+}
+`.trim();
+
+      const messages = [
+        { role: "system", content: FINAL_DIAG_PROMPT },
+        { role: "user", content: `Tóm tắt bệnh án:\n${tomtat}\n\nKết quả cận lâm sàng:\n${ketqua}` }
+      ];
+
+      const response = await fetch(DIAG_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages })
+      });
+
+      const raw = await response.text();
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${raw.slice(0, 200)}`);
+
+      let data;
+      try { data = JSON.parse(raw); } catch (_) {
+        throw new Error(`Server không trả JSON. Nhận: ${raw.slice(0, 200)}`);
+      }
+
+      const reply = (data && typeof data.answer === "string" && data.answer.trim())
+        ? data.answer.trim()
+        : "";
+
+      if (!reply) return;
+
+      const parsed = _extractJsonFromText(reply);
+      const diagRaw = parsed?.chandoan_xacdinh || parsed?.chandoan || parsed?.diagnosis || reply;
+      const huongRaw = parsed?.huong_dieu_tri || parsed?.huongdieutri || parsed?.treatment || "";
+
+      const finalDiag = _stripHistoryIfMissing(tomtat, _stripPatientPrefix(diagRaw));
+      _setTextareaValue(xacdinhEl, finalDiag);
+
+      const huongEl = document.getElementById("huongdieutri");
+      if (huongEl && huongRaw) {
+        const huongFmt = _formatHuongDieuTriList(huongRaw);
+        _setTextareaValue(huongEl, huongFmt);
+      }
+    } catch (err) {
+      console.warn("Final diagnosis AI failed:", err);
+    } finally {
+      _setDiagPlaceholders(false, { cls: false, final: true });
+      diagBtn.disabled = false;
+    }
+  });
 }
 
 async function sendMessage() {
@@ -1222,6 +2161,11 @@ if (chatInput) {
         out[el.id] = (el.value ?? "");
       }
     }
+    // Backward-compat for clients still using old ids.
+    if (typeof out.cls_canlamsang === "string") {
+      if (!("cls_chuandoan" in out)) out.cls_chuandoan = out.cls_canlamsang;
+      if (!("cls_thuongquy" in out)) out.cls_thuongquy = "";
+    }
     return out;
   }
 
@@ -1235,7 +2179,13 @@ if (chatInput) {
         // không overwrite field đang focus
         if (document.activeElement === el) continue;
 
-        const v = dataObj[el.id];
+        let v = dataObj[el.id];
+        // Backward-compat for payloads from old form (`cls_thuongquy` + `cls_chuandoan`).
+        if (el.id === "cls_canlamsang" && v === undefined) {
+          const oldDiag = (dataObj.cls_chuandoan ?? "").toString().trim();
+          const oldRoutine = (dataObj.cls_thuongquy ?? "").toString().trim();
+          v = [oldRoutine, oldDiag].filter(Boolean).join("\n");
+        }
 
         if (el.type === "checkbox") {
           el.checked = !!v;

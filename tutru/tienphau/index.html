@@ -214,14 +214,25 @@ b) Gia đình: Không ghi nhận bệnh lý liên quan</textarea>
 <label>3. Chẩn đoán phân biệt</label>
 <textarea id="chandoanpd"></textarea>
 <label>4. Đề nghị cận lâm sàng và kết quả</label>
-<div>a) Đề nghị cận lâm sàng</div>
-<label>- Thường quy</label>
-<textarea id="cls_thuongquy">CTM; TPTNT; glucose máu; định lượng AST, ALT, ure, creatinin huyết thanh; eGFR; ion đồ 3 thông số; ECG</textarea>
-<label>- Chẩn đoán</label>
-<textarea id="cls_chuandoan"></textarea>
+<div class="row cls-row cls-search-row">
+<div class="cls-label">a) Đề nghị cận lâm sàng</div>
+<div class="cls-search-wrap">
+<input autocomplete="off" id="cls-search" placeholder="Tìm CLS trong danh sách..." spellcheck="false" type="text"/>
+<div aria-label="Gợi ý cận lâm sàng" class="cls-suggest" id="cls-suggest" role="listbox"></div>
+</div>
+<button class="apple-icon-btn cls-ai-btn" id="btn-cls-ai" title="Trợ giúp AI" type="button">
+  AI trợ giúp
+</button>
+</div>
+<textarea id="cls_canlamsang"></textarea>
 <div style="margin-top: 10px;">b) Kết quả</div>
 <textarea id="ketqua"></textarea>
+<div class="row cls-row">
 <label>5. Chẩn đoán xác định</label>
+<button class="apple-icon-btn cls-ai-btn" id="btn-diag-ai" title="AI chẩn đoán" type="button">
+  AI chẩn đoán
+</button>
+</div>
 <textarea id="chandoanxacdinh"></textarea>
 <label>6. Điều trị</label>
 <label>a) Hướng điều trị</label>
