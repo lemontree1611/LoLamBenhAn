@@ -1532,8 +1532,12 @@ if (diagBtn) {
     const xacdinhEl = document.getElementById("chandoanxacdinh");
     if (!xacdinhEl) return;
 
-    if (xacdinhEl.value.trim() && !confirm("Ô chẩn đoán xác định đã có dữ liệu. Bạn muốn chẩn đoán lại không?")) {
-      return;
+    if (xacdinhEl.value.trim()) {
+      const ok = confirm("Ô chẩn đoán xác định đã có dữ liệu. Bạn muốn chẩn đoán lại không?");
+      if (!ok) return;
+      _setTextareaValue(xacdinhEl, "");
+      const huongClearEl = document.getElementById("huongdieutri");
+      if (huongClearEl) _setTextareaValue(huongClearEl, "");
     }
 
     try {
