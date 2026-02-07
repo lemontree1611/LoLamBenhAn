@@ -1049,8 +1049,32 @@ if (chatInput) {
     });
   }
 
+  const LOCKER_NAME_LIST = [
+    "gấu túi cute",
+    "gà mờ ngốc nghếch",
+    "cún con nghịch ngọm",
+    "mèo con phá phách",
+    "cáo già lắm chiu",
+    "rái cá lặn giỏi",
+    "bạch tuột thông minh",
+    "tôm hùm tay to",
+    "cá sấu tàn bạo",
+    "đại bàng dũng mãnh",
+  ];
+
+  function _hashLockerId(id) {
+    const s = String(id || "");
+    let h = 0;
+    for (let i = 0; i < s.length; i++) {
+      h = (h * 31 + s.charCodeAt(i)) | 0;
+    }
+    return Math.abs(h);
+  }
+
   function getLockerLabel(by) {
-    return by ? by.slice(0, 6) : "người khác";
+    if (!by) return "người khác";
+    const idx = _hashLockerId(by) % LOCKER_NAME_LIST.length;
+    return LOCKER_NAME_LIST[idx];
   }
 
   function sendLock(fieldId) {

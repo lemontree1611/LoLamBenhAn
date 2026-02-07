@@ -1117,19 +1117,19 @@ input[type="number"] {
 
 /* CLS AI button: Apple green */
 .cls-ai-btn{
-  background: #34c759;
+  background: #297fe2;
   color: #fff;
-  border-color: #34c759;
+  border-color: #297fe2;
   padding: 4px 8px;
   height: 28px;
-  font-size: 12px;
+  font-size: 14px;
   min-width: auto;
   width: auto;
   letter-spacing: 0;
   flex: 0 0 auto;
 }
 .cls-ai-btn:hover{
-  background: #2fb653;
+  background: #1c5aa0;
 }
 
 /* Keep CLS AI button inline-sized on mobile */
