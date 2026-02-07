@@ -748,18 +748,64 @@ function _extractJsonFromText(text) {
   if (!text) return null;
   const trimmed = String(text).trim();
 
-  try { return JSON.parse(trimmed); } catch (_) {}
+  const tryParse = (s) => {
+    try { return JSON.parse(s); } catch (_) { return null; }
+  };
+
+  const fixJsonNewlines = (s) => {
+    const raw = String(s || "");
+    let out = "";
+    let inString = false;
+    let escape = false;
+    for (let i = 0; i < raw.length; i++) {
+      const ch = raw[i];
+      if (inString) {
+        if (escape) { out += ch; escape = false; continue; }
+        if (ch === "\\") { out += ch; escape = true; continue; }
+        if (ch === "\"") { out += ch; inString = false; continue; }
+        if (ch === "\n") { out += "\\n"; continue; }
+        if (ch === "\r") {
+          out += "\\n";
+          if (raw[i + 1] === "\n") i++;
+          continue;
+        }
+        out += ch;
+      } else {
+        if (ch === "\"") { inString = true; out += ch; continue; }
+        out += ch;
+      }
+    }
+    return out;
+  };
+
+  const tryParseFixed = (s) => {
+    const fixed = fixJsonNewlines(s);
+    if (fixed !== s) return tryParse(fixed);
+    return null;
+  };
+
+  let parsed = tryParse(trimmed);
+  if (parsed) return parsed;
+  parsed = tryParseFixed(trimmed);
+  if (parsed) return parsed;
 
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenced && fenced[1]) {
-    try { return JSON.parse(fenced[1].trim()); } catch (_) {}
+    const raw = fenced[1].trim();
+    parsed = tryParse(raw);
+    if (parsed) return parsed;
+    parsed = tryParseFixed(raw);
+    if (parsed) return parsed;
   }
 
   const first = trimmed.indexOf("{");
   const last = trimmed.lastIndexOf("}");
   if (first >= 0 && last > first) {
     const slice = trimmed.slice(first, last + 1);
-    try { return JSON.parse(slice); } catch (_) {}
+    parsed = tryParse(slice);
+    if (parsed) return parsed;
+    parsed = tryParseFixed(slice);
+    if (parsed) return parsed;
   }
   return null;
 }
