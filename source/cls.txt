@@ -1,6 +1,7 @@
 ﻿[Huyết học & Đông máu]
 Công thức máu (CBC)
 Hồng cầu lưới
+Tế bào dòng chảy (flow cytometry)
 Định nhóm máu ABO, Rh
 Đông máu cơ bản: PT, INR, aPTT, Fibrinogen
 D-dimer
@@ -31,6 +32,8 @@ Thông tim – chụp mạch vành
 Khí máu động mạch
 Đo chức năng hô hấp (spirometry)
 Nội soi phế quản
+Soi đờm AFB 
+Xpert MTB/RIF
 
 [Viêm & Miễn dịch]
 CRP
@@ -39,13 +42,13 @@ RF, Anti-CCP
 ANA, Anti-dsDNA
 Bổ thể C3, C4
 IgG, IgA, IgM, IgE
+Test nhanh: Ns1, COVID-19…
 
 [Vi sinh]
 Soi – cấy vi khuẩn (máu, nước tiểu, đàm…)
 Kháng sinh đồ
 PCR vi sinh
 Soi ký sinh trùng (phân, máu)
-Test nhanh: Ns1, COVID-19…
 
 [Nước tiểu]
 Tổng phân tích nước tiểu

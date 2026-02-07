@@ -1267,7 +1267,7 @@ function _setDiagPlaceholders(loading, opts = {}) {
   const huongEl = document.getElementById("huongdieutri");
   const msg = "Đợi xíu, bot LÒ sẽ chẩn đoán giúp bạn...";
   const clsMsg = "Đợi xíu, để LÒ đề nghị cận lâm sàng cho...";
-  const finalMsg = "đợi bot LÒ suy nghĩ xíuuu";
+  const finalMsg = "Xem bot LÒ trổ tài nè";
   const useCls = opts.cls !== false;
   const useFinal = opts.final === true;
 
