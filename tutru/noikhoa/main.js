@@ -870,6 +870,127 @@ async function _loadClsList() {
   return data;
 }
 
+function _insertClsAtCursor(text) {
+  const el = document.getElementById("cls_canlamsang");
+  if (!el || el.disabled) return false;
+  const value = el.value || "";
+  const start = Number.isFinite(el.selectionStart) ? el.selectionStart : value.length;
+  const end = Number.isFinite(el.selectionEnd) ? el.selectionEnd : value.length;
+  const atEnd = start === value.length && end === value.length;
+  const prefix = (atEnd && value && !value.endsWith("\n")) ? "\n" : "";
+  const insert = `${prefix}${text}`;
+  const nextValue = value.slice(0, start) + insert + value.slice(end);
+  el.value = nextValue;
+  const caret = start + insert.length;
+  el.focus();
+  try { el.setSelectionRange(caret, caret); } catch (_) {}
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
+}
+
+function _filterClsItems(items, query, limit = 12) {
+  const q = _normalizeClsName(query);
+  if (!q) return [];
+  const out = [];
+  for (const item of (items || [])) {
+    if (_normalizeClsName(item).includes(q)) {
+      out.push(item);
+      if (out.length >= limit) break;
+    }
+  }
+  return out;
+}
+
+function _initClsSearch() {
+  const input = document.getElementById("cls-search");
+  const list = document.getElementById("cls-suggest");
+  if (!input || !list) return;
+
+  let clsItems = null;
+  let activeIndex = -1;
+
+  const closeList = () => {
+    list.innerHTML = "";
+    list.classList.remove("show");
+    activeIndex = -1;
+  };
+
+  const renderList = (items) => {
+    list.innerHTML = "";
+    if (!items || items.length === 0) {
+      list.classList.remove("show");
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    items.forEach((item, idx) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "cls-suggest-item";
+      btn.setAttribute("role", "option");
+      btn.setAttribute("data-index", String(idx));
+      btn.textContent = item;
+      btn.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        closeList();
+        input.value = "";
+        _insertClsAtCursor(item);
+      });
+      frag.appendChild(btn);
+    });
+    list.appendChild(frag);
+    list.classList.add("show");
+  };
+
+  const setActive = (index) => {
+    const items = Array.from(list.querySelectorAll(".cls-suggest-item"));
+    if (!items.length) return;
+    items.forEach((el, i) => el.classList.toggle("is-active", i === index));
+    if (index >= 0) items[index].scrollIntoView({ block: "nearest" });
+  };
+
+  const updateList = async () => {
+    const q = input.value.trim();
+    if (!q) return closeList();
+    if (!clsItems) {
+      const data = await _loadClsList();
+      clsItems = data?.flat || [];
+    }
+    const items = _filterClsItems(clsItems, q, 12);
+    activeIndex = -1;
+    renderList(items);
+  };
+
+  input.addEventListener("input", () => { updateList(); });
+  input.addEventListener("focus", () => { updateList(); });
+  input.addEventListener("keydown", (e) => {
+    const items = Array.from(list.querySelectorAll(".cls-suggest-item"));
+    if (!items.length) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      activeIndex = (activeIndex + 1) % items.length;
+      setActive(activeIndex);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      activeIndex = (activeIndex - 1 + items.length) % items.length;
+      setActive(activeIndex);
+    } else if (e.key === "Enter") {
+      if (activeIndex >= 0) {
+        e.preventDefault();
+        items[activeIndex].dispatchEvent(new MouseEvent("mousedown"));
+      }
+    } else if (e.key === "Escape") {
+      closeList();
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (e.target === input || list.contains(e.target)) return;
+    closeList();
+  });
+}
+
 const CLS_GROUP_DEFS = [
   { key: "hema", label: "Huyết học & Đông máu", itemRe: /(công thức máu|hồng cầu|đông máu|d-dimer|tủy đồ|cầm máu)/i, signals: /(thiếu máu|xuất huyết|đông máu|d-dimer|bạch cầu)/i },
   { key: "biochem", label: "Sinh hóa", itemRe: /(đường huyết|chức năng gan|chức năng thận|điện giải|ca|mg|phospho|mỡ máu|men tim|acid uric|albumin|lactate)/i, signals: /(gan|thận|đái tháo đường|đường huyết|điện giải|mỡ máu)/i },
@@ -1099,6 +1220,33 @@ function _setTextareaValue(el, value) {
   return true;
 }
 
+function _formatHuongDieuTriList(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return "";
+
+  let parts = raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  if (parts.length <= 1) {
+    const semi = raw.split(/\s*;\s*/).map(s => s.trim()).filter(Boolean);
+    if (semi.length > 1) parts = semi;
+  }
+
+  const normalize = (s) => s
+    .replace(/^[-•*]\s*/, "")
+    .replace(/^\d+[\).\-\s]+/, "")
+    .trim();
+
+  if (parts.length <= 1) {
+    const one = normalize(parts[0] || raw);
+    return one ? `- ${one}` : "";
+  }
+
+  return parts
+    .map(normalize)
+    .filter(Boolean)
+    .map(s => `- ${s}`)
+    .join("\n");
+}
+
 function _stripHistoryIfMissing(tomtat, text) {
   const hasHistory = /(tiền\s*sử|tiền\s*căn|bệnh\s*nền|tien\s*su|tien\s*can|benh\s*nen)/i.test(String(tomtat || ""));
   if (hasHistory) return String(text || "").trim();
@@ -1262,6 +1410,8 @@ if (tomtatEl) {
 // ===============================
 //  CLS AI SUPPORT (button)
 // ===============================
+_initClsSearch();
+
 const clsBtn = document.getElementById("btn-cls-ai");
 if (clsBtn) {
   clsBtn.addEventListener("click", async () => {
@@ -1394,7 +1544,12 @@ if (diagBtn) {
 Bạn là bác sĩ nội khoa.
 Dựa trên tóm tắt bệnh án và kết quả cận lâm sàng, hãy trả về:
 1) 1 chẩn đoán xác định (1 câu duy nhất, theo form như chẩn đoán sơ bộ)
-2) 1 hướng điều trị ngắn gọn
+2) Hướng điều trị (liệt kê từng ý cụ thể, càng chuyên khoa càng tốt)
+
+Yêu cầu cho "huong_dieu_tri":
+- Dạng gạch đầu dòng, mỗi ý 1 dòng, bắt đầu bằng "- ".
+- Mỗi ý ngắn gọn, cụ thể, ưu tiên: xử trí ban đầu/ổn định, điều trị nguyên nhân, điều trị triệu chứng, theo dõi - đánh giá đáp ứng, phòng ngừa biến chứng, tiêu chí hội chẩn/chuyển tuyến, tư vấn/dặn dò (chọn phù hợp ca bệnh).
+- Không viết đoạn văn dài, không đánh số.
 
 Chẩn đoán phải là 1 câu tự nhiên, KHÔNG dùng dấu "+".
 Không bắt đầu bằng "Bệnh nhân..." hay "BN...".
@@ -1441,7 +1596,8 @@ Trả về JSON theo schema:
 
       const huongEl = document.getElementById("huongdieutri");
       if (huongEl && huongRaw) {
-        _setTextareaValue(huongEl, String(huongRaw).trim());
+        const huongFmt = _formatHuongDieuTriList(huongRaw);
+        _setTextareaValue(huongEl, huongFmt);
       }
     } catch (err) {
       console.warn("Final diagnosis AI failed:", err);

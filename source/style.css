@@ -1147,6 +1147,65 @@ input[type="number"] {
   flex-wrap: wrap;
 }
 
+.cls-search-row .cls-label{
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.cls-search-wrap{
+  position: relative;
+  flex: 1 1 280px;
+  min-width: 220px;
+}
+
+#cls-search{
+  width: 100%;
+}
+
+.cls-suggest{
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #d2d2d7;
+  border-radius: 12px;
+  box-shadow: 0 14px 30px rgba(0,0,0,0.12);
+  max-height: 260px;
+  overflow: auto;
+  display: none;
+  z-index: 6;
+}
+
+.cls-suggest.show{
+  display: block;
+}
+
+button.cls-suggest-item{
+  width: 100%;
+  min-width: 0;
+  padding: 8px 12px;
+  text-align: left;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #1d1d1f;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: none;
+  transform: none;
+}
+
+button.cls-suggest-item:hover,
+button.cls-suggest-item.is-active{
+  background: #f5f5f7;
+  transform: none;
+}
+
+button.cls-suggest-item:active{
+  transform: none;
+}
+
 @media (max-width: 520px){
   .apple-icon-btn .btn-text{ display:none; }
 }

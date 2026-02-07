@@ -237,8 +237,12 @@ b) Gia đình: Không ghi nhận bệnh lý liên quan</textarea>
     <textarea id="chandoanpd"></textarea>
 
     <label>4. Đề nghị cận lâm sàng và kết quả</label>
-    <div class="row cls-row">
-      <div>a) Đề nghị cận lâm sàng</div>
+    <div class="row cls-row cls-search-row">
+      <div class="cls-label">a) Đề nghị cận lâm sàng</div>
+      <div class="cls-search-wrap">
+        <input id="cls-search" type="text" placeholder="Tìm CLS trong danh sách..." autocomplete="off" spellcheck="false" />
+        <div id="cls-suggest" class="cls-suggest" role="listbox" aria-label="Gợi ý cận lâm sàng"></div>
+      </div>
       <button type="button" class="apple-icon-btn cls-ai-btn" id="btn-cls-ai" title="Trợ giúp AI">
         AI trợ giúp
       </button>
