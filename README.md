@@ -1,72 +1,47 @@
-# 🏥 LoLamBenhAn
+﻿# LoLamBenhAn
 
-**LoLamBenhAn** là một web app hỗ trợ **làm – quản lý – chia sẻ bệnh án điện tử**, hướng tới sinh viên y khoa cần làm bệnh án nhanh, chính xác và có thể làm việc nhóm hiệu quả.
+LoLamBenhAn là web app hỗ trợ sinh viên Y khoa làm bệnh án nhanh, rõ, đúng cấu trúc và có thể cộng tác theo thời gian thực.
 
----
-
-## ✨ Tính năng chính
-
-- 📝 **Đầy đủ các form bệnh án**
-  - Hỗ trợ nhiều loại bệnh án theo chuẩn
-  - Giao diện rõ ràng, dễ nhập liệu
-
-- 🤝 **Chia sẻ bệnh án – làm việc nhóm**
-  - Nhiều người có thể cùng làm một bệnh án
-  - Tự động khóa ô nhập khi người khác đang chỉnh sửa để tránh xung đột dữ liệu
-
-- 📊 **Tự động tính toán & đánh giá**
-  - Tính **BMI**
-  - Tính **Z-score**
-  - Tự động đưa ra **kết luận** dựa trên chỉ số đã nhập
-
-- 🤖 **Tích hợp AI**
-  - Hỗ trợ gợi ý nội dung bệnh án
-  - Giúp hoàn thiện câu chữ, tóm tắt và kiểm tra thông tin
-
-- 📄 **Xem & xuất file Word (DOCX)**
-  - Xuất bệnh án theo **mẫu định dạng sẵn**
-  - Phù hợp để nộp, in ấn hoặc lưu trữ
-
----
-
-## 🛠 Công nghệ sử dụng
-
-- Frontend: Web (HTML / CSS / JavaScript)
-- Realtime collaboration: WebSocket
-- AI: **Gemini** / **Groq** model
-- Export file: DOCX template
-
----
-
-## 🎯 Mục tiêu dự án
+## Mục tiêu dự án
 
 - Giảm thời gian làm bệnh án
-- Hạn chế sai sót khi tính toán chỉ số
-- Hỗ trợ làm việc nhóm hiệu quả
-- Ứng dụng AI vào thực tế học tập và lâm sàng
+- Tăng độ chính xác và tính nhất quán
+- Hỗ trợ học lâm sàng theo quy trình rõ ràng
+- Kết hợp AI vào học tập và thực hành một cách an toàn, có kiểm soát
 
----
+## Tính năng chính
 
-## 🚀 Demo & triển khai
+- Hệ thống form bệnh án theo từng chuyên khoa (nội, ngoại, sản, nhi, tiền phẫu, hậu phẫu, gây mê hồi sức...)
+- Cộng tác nhóm realtime qua WebSocket, giảm xung đột khi nhiều người cùng chỉnh sửa
+- Tự động tính chỉ số lâm sàng (ví dụ BMI, Z-score) và hỗ trợ tổng hợp nội dung
+- Xem trước và xuất file Word (DOCX) theo mẫu để nộp/in/lưu trữ
+- Tích hợp AI hỗ trợ viết và chuẩn hóa nội dung bệnh án
 
-🔗 Demo: https://lolambenhan.vercel.app/
+## Tính năng AI mới
+
+- Gọi AI tự động theo luồng lâm sàng:
+  1. Chẩn đoán sơ bộ
+  2. Đề xuất cận lâm sàng cần làm
+  3. Đọc và diễn giải kết quả cận lâm sàng
+  4. Chẩn đoán xác định
+  5. Đề xuất hướng xử trí
+
+Luồng này giúp người học đi đúng trình tự tư duy lâm sàng, giảm thiếu sót khi lập bệnh án và tăng tốc độ hoàn thiện hồ sơ.
+
+## Công nghệ
+
+- Frontend: HTML, CSS, JavaScript
+- Realtime: WebSocket
+- Backend: Node.js (ws-server)
+- AI: Gemini / Groq
+- Export: DOCX
+
+## Demo
+
+- https://lolambenhan.vercel.app/
 
 ![Trang chủ](source/preview.jpg)
 
----
+## Đóng góp
 
-## 📌 Ghi chú
-
-Dự án đang trong quá trình phát triển và hoàn thiện thêm nhiều tính năng mới.  
-Mọi đóng góp hoặc ý kiến đều được hoan nghênh ❤️
-
----
-
-## 📬 Liên hệ
-
-Nếu bạn có câu hỏi hoặc muốn đóng góp cho dự án, hãy tạo **Issue** hoặc **Pull Request** trên GitHub.
-
----
-
-⭐ Nếu bạn thấy dự án hữu ích, đừng quên **Star** repo để ủng hộ nhé!
-
+Mọi góp ý đều được hoan nghênh. Bạn có thể tạo Issue hoặc Pull Request để cùng cải thiện dự án.
