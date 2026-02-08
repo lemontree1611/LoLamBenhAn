@@ -475,8 +475,13 @@ function condenseMessages(messages) {
   return [summaryMsg, ...tail];
 }
 
-async function callGemini({ apiKey, messages }) {
-  const key = "gemini:gemini-2.5-flash";
+function getGeminiModel() {
+  const model = String(process.env.GEMINI_MODEL || "").trim();
+  return model || "gemini-2.5-flash";
+}
+
+async function callGemini({ apiKey, model, messages }) {
+  const key = `gemini:${model}`;
   if (inCooldown(key)) {
     return { ok: false, status: 429, raw: "Gemini in cooldown" };
   }
@@ -487,7 +492,9 @@ async function callGemini({ apiKey, messages }) {
   }));
 
   const url =
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent" +
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
+      model
+    )}:generateContent` +
     `?key=${apiKey}`;
 
   const r = await fetch(url, {
@@ -588,12 +595,17 @@ app.post("/chat", async (req, res) => {
 
       const compact = condenseMessages(messages);
 
-      const g = await callGemini({ apiKey: GEMINI_API_KEY, messages: compact });
+      const geminiModel = getGeminiModel();
+      const g = await callGemini({
+        apiKey: GEMINI_API_KEY,
+        model: geminiModel,
+        messages: compact
+      });
 
       if (g.ok) {
         const data = safeJson(g.raw) || {};
         const answer = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        return { answer, provider_used: "gemini", model_used: "gemini-2.5-flash" };
+        return { answer, provider_used: "gemini", model_used: geminiModel };
       }
 
       if (!isRateLimitOrQuota(g.status, g.raw)) {
