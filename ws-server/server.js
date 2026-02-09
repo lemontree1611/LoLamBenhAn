@@ -504,14 +504,39 @@ function condenseMessages(messages) {
   return [summaryMsg, ...tail];
 }
 
+function parseApiKeys(listValue, singleValue) {
+  const list = String(listValue || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (list.length > 0) return Array.from(new Set(list));
+
+  const single = String(singleValue || "").trim();
+  return single ? [single] : [];
+}
+
+function keyTag(provider, idx, key) {
+  const tail = String(key || "").slice(-6) || "unknown";
+  return `${provider}-k${idx + 1}-${tail}`;
+}
+
 function getGeminiModel() {
   const model = String(process.env.GEMINI_MODEL || "").trim();
   return model || "gemini-2.5-flash";
 }
 
+function getGeminiApiKeys() {
+  return parseApiKeys(process.env.GEMINI_API_KEYS, "");
+}
+
+function getGroqApiKeys() {
+  return parseApiKeys(process.env.GROQ_API_KEYS, process.env.GROQ_API_KEY);
+}
+
 async function callGemini({ apiKey, model, messages }) {
-  const key = `gemini:${model}`;
-  if (inCooldown(key)) {
+  const cooldownKey = `gemini:${model}:${apiKey}`;
+  if (inCooldown(cooldownKey)) {
     return { ok: false, status: 429, raw: "Gemini in cooldown" };
   }
 
@@ -535,7 +560,7 @@ async function callGemini({ apiKey, model, messages }) {
   const raw = await r.text();
 
   if (!r.ok && isRateLimitOrQuota(r.status, raw)) {
-    setCooldown(key);
+    setCooldown(cooldownKey);
   }
 
   return { ok: r.ok, status: r.status, raw };
@@ -556,7 +581,7 @@ function getGroqModels() {
 }
 
 async function callGroqChat({ apiKey, model, messages }) {
-  const key = `groq:${model}`;
+  const key = `groq:${model}:${apiKey}`;
 
   if (inCooldown(key)) {
     return { ok: false, status: 429, raw: "Groq in cooldown" };
@@ -615,9 +640,9 @@ app.post("/chat", async (req, res) => {
         throw e;
       }
 
-      const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-      if (!GEMINI_API_KEY) {
-        const e = new Error("Missing GEMINI_API_KEY");
+      const geminiKeys = getGeminiApiKeys();
+      if (geminiKeys.length === 0) {
+        const e = new Error("Missing GEMINI_API_KEYS");
         e.status = 500;
         throw e;
       }
@@ -625,57 +650,84 @@ app.post("/chat", async (req, res) => {
       const compact = condenseMessages(messages);
 
       const geminiModel = getGeminiModel();
-      const g = await callGemini({
-        apiKey: GEMINI_API_KEY,
-        model: geminiModel,
-        messages: compact
-      });
+      let geminiResp = null;
+      let geminiUsedTag = null;
 
-      if (g.ok) {
-        const data = safeJson(g.raw) || {};
-        const answer = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        return { answer, provider_used: "gemini", model_used: geminiModel };
+      for (let i = 0; i < geminiKeys.length; i++) {
+        const k = geminiKeys[i];
+        const g = await callGemini({
+          apiKey: k,
+          model: geminiModel,
+          messages: compact
+        });
+
+        geminiResp = g;
+        geminiUsedTag = keyTag("gemini", i, k);
+
+        if (g.ok) {
+          const data = safeJson(g.raw) || {};
+          const answer = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          return {
+            answer,
+            provider_used: "gemini",
+            model_used: geminiModel,
+            key_used: geminiUsedTag
+          };
+        }
+
+        // Hard errors: stop early. Quota/rate-limit: try next key.
+        if (!isRateLimitOrQuota(g.status, g.raw)) {
+          const e = new Error("Gemini API error");
+          e.status = g.status || 500;
+          e.detail = g.raw;
+          throw e;
+        }
       }
 
-      if (!isRateLimitOrQuota(g.status, g.raw)) {
-        const e = new Error("Gemini API error");
-        e.status = g.status || 500;
-        e.detail = g.raw;
-        throw e;
-      }
-
-      const GROQ_API_KEY = process.env.GROQ_API_KEY;
-      if (!GROQ_API_KEY) {
+      const groqKeys = getGroqApiKeys();
+      if (groqKeys.length === 0) {
         const e = new Error(
-          "Gemini rate-limited, and Missing GROQ_API_KEY for fallback"
+          "All Gemini keys rate-limited, and Missing GROQ_API_KEY or GROQ_API_KEYS for fallback"
         );
         e.status = 429;
-        e.detail = g.raw;
+        e.detail = geminiResp?.raw || null;
         throw e;
       }
 
       const groqModels = getGroqModels();
       let lastGroq = null;
 
-      for (const model of groqModels) {
-        const o = await callGroqChat({
-          apiKey: GROQ_API_KEY,
-          model,
-          messages: compact
-        });
-        lastGroq = { model, status: o.status, raw: o.raw };
+      for (let keyIdx = 0; keyIdx < groqKeys.length; keyIdx++) {
+        const apiKey = groqKeys[keyIdx];
 
-        if (o.ok) {
-          const data = safeJson(o.raw) || {};
-          const answer = data?.choices?.[0]?.message?.content || "";
-          return { answer, provider_used: "groq", model_used: model };
-        }
+        for (const model of groqModels) {
+          const o = await callGroqChat({
+            apiKey,
+            model,
+            messages: compact
+          });
+          lastGroq = {
+            model,
+            status: o.status,
+            raw: o.raw,
+            key_tag: keyTag("groq", keyIdx, apiKey)
+          };
 
-        if (!isRateLimitOrQuota(o.status, o.raw)) {
-          const e = new Error("Groq API error");
-          e.status = o.status || 500;
-          e.detail = o.raw;
-          throw e;
+          if (o.ok) {
+            const data = safeJson(o.raw) || {};
+            const answer = data?.choices?.[0]?.message?.content || "";
+            return {
+              answer,
+              provider_used: "groq",
+              model_used: model,
+              key_used: lastGroq.key_tag
+            };
+          }
+
+          if (!isRateLimitOrQuota(o.status, o.raw)) {
+            // Invalid key / non-quota error on one key+model => thử key tiếp theo.
+            break;
+          }
         }
       }
 
@@ -683,14 +735,17 @@ app.post("/chat", async (req, res) => {
       const payload = {
         error: "All Groq fallback models are rate-limited or unavailable",
         gemini: {
-          status: g.status,
-          detail: safeJson(g.raw) ? safeJson(g.raw) : g.raw
+          status: geminiResp?.status || 429,
+          key_used: geminiUsedTag,
+          detail: safeJson(geminiResp?.raw) ? safeJson(geminiResp?.raw) : geminiResp?.raw
         },
         groq: {
           tried_models: groqModels,
+          tried_keys: groqKeys.length,
           last: lastGroq
             ? {
                 model: lastGroq.model,
+                key_used: lastGroq.key_tag,
                 status: lastGroq.status,
                 detail: safeJson(lastGroq.raw)
                   ? safeJson(lastGroq.raw)
