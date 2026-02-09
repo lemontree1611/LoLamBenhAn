@@ -1,0 +1,15 @@
+name: Keep Render Warm
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend healthz
+        run: |
+          curl --silent --show-error --fail --max-time 60 \
+            https://lolambenhan.onrender.com/healthz

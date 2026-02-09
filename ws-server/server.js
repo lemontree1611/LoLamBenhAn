@@ -119,7 +119,36 @@ app.get("/", (req, res) => {
   res.send("WS + Gemini API server is running.");
 });
 
-app.get("/healthz", (req, res) => res.send("ok"));
+app.get("/healthz", async (req, res) => {
+  const startedAt = Date.now();
+  try {
+    if (!pool) {
+      return res.status(200).json({
+        ok: true,
+        service: "up",
+        db: "not_configured",
+        uptime_sec: Math.floor(process.uptime())
+      });
+    }
+
+    await pool.query("select 1");
+    return res.status(200).json({
+      ok: true,
+      service: "up",
+      db: "up",
+      uptime_sec: Math.floor(process.uptime()),
+      latency_ms: Date.now() - startedAt
+    });
+  } catch (e) {
+    return res.status(503).json({
+      ok: false,
+      service: "up",
+      db: "down",
+      uptime_sec: Math.floor(process.uptime()),
+      latency_ms: Date.now() - startedAt
+    });
+  }
+});
 
 // ================== POSTGRES (COMMENTS + HOICHAN) ==================
 const DATABASE_URL = process.env.DATABASE_URL || "";
