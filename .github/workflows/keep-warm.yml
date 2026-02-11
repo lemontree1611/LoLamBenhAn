@@ -5,11 +5,46 @@ on:
     - cron: "*/10 * * * *"
   workflow_dispatch:
 
+concurrency:
+  group: keep-render-warm
+  cancel-in-progress: true
+
 jobs:
   ping:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Ping backend healthz
+      - name: Ping backend healthz (retry)
+        shell: bash
         run: |
-          curl --silent --show-error --fail --max-time 60 \
-            https://lolambenhan.onrender.com/healthz
+          set -euo pipefail
+
+          URL="https://lolambenhan.onrender.com/healthz"
+          ATTEMPTS=6
+          SLEEP=15
+          TIMEOUT=120
+
+          for i in $(seq 1 $ATTEMPTS); do
+            echo "==> Attempt $i/$ATTEMPTS: $URL"
+
+            # -L theo redirect (nếu có), -m timeout theo giây
+            http_code="$(curl -L --silent --show-error --max-time "$TIMEOUT" \
+              --write-out "%{http_code}" --output /tmp/resp.txt "$URL" || true)"
+
+            echo "HTTP: $http_code"
+            echo "Body (first 200 chars):"
+            head -c 200 /tmp/resp.txt || true
+            echo
+
+            # Thành công nếu 200-399
+            if [[ "$http_code" =~ ^[23] || "$http_code" =~ ^3 ]]; then
+              echo "✅ Warm ping OK"
+              exit 0
+            fi
+
+            echo "⏳ Failed (code=$http_code). Sleep ${SLEEP}s then retry..."
+            sleep "$SLEEP"
+          done
+
+          echo "❌ All attempts failed"
+          exit 1
