@@ -3,7 +3,7 @@ const GOOGLE_CLIENT_ID =
   "809932517901-53dirqapfjqbroadjilk8oeqtj0qugfj.apps.googleusercontent.com";
 
 // Backend WebSocket đã deploy (bạn đang dùng onrender)
-const WS_URL = "wss://lolambenhan.onrender.com/ws-hoichan";
+const WS_URL = "wss://lolambenhan-0be9.onrender.com/ws-hoichan";
 
 // ====== DOM ======
 const $ = (id) => document.getElementById(id);

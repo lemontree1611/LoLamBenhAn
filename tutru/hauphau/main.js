@@ -653,7 +653,7 @@ const chatMessages = document.getElementById("chat-messages");
 //  Backend proxy gọi Gemini, trả JSON: { answer: "..." }
 //  (Đổi domain nếu Render của bạn khác)
 // ===============================
-const CHAT_API_URL = "https://lolambenhan.onrender.com/chat";
+const CHAT_API_URL = "https://lolambenhan-0be9.onrender.com/chat";
 const CLS_LIST_URL = "../../source/cls.txt";
 let __CLS_LIST_CACHE__ = null;
 
@@ -1063,7 +1063,7 @@ _initClsSearch();
 //  - Đồng bộ realtime + đồng bộ Xoá hết
 // ===============================
 (function initShareWebSocket() {
-  const WS_URL = "wss://lolambenhan.onrender.com"; // <-- đổi nếu domain Render thay đổi
+  const WS_URL = "wss://lolambenhan-0be9.onrender.com"; // <-- đổi nếu domain Render thay đổi
 
   const noticeEl = document.getElementById("share-notice");
   const btnShare = document.getElementById("btn-share");

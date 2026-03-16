@@ -710,7 +710,7 @@ const chatSend = document.getElementById("chat-send");
 const chatInput = document.getElementById("chat-text");
 const chatMessages = document.getElementById("chat-messages");
 
-const CHAT_API_URL = "https://lolambenhan.onrender.com/chat";
+const CHAT_API_URL = "https://lolambenhan-0be9.onrender.com/chat";
 
 if (chatToggleBtn && chatBox) {
   chatToggleBtn.onclick = () => {
@@ -881,7 +881,7 @@ if (chatInput) {
 //  - NOTE: dynamic rows sync qua hidden JSON fields
 // ===============================
 (function initShareWebSocket() {
-  const WS_URL = "wss://lolambenhan.onrender.com";
+  const WS_URL = "wss://lolambenhan-0be9.onrender.com";
 
   const noticeEl = document.getElementById("share-notice");
   const btnShare = document.getElementById("btn-share");
