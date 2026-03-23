@@ -783,6 +783,14 @@ const wss = new WebSocket.Server({ noServer: true });
 const hoichanWss = new WebSocket.Server({ noServer: true });
 
 const HOICHAN_PATH = "/ws-hoichan";
+const SHARE_ROOM_TTL_DAYS = Math.max(
+  1,
+  Number(process.env.SHARE_ROOM_TTL_DAYS || 3)
+);
+const SHARE_ROOM_CLEANUP_INTERVAL_HOURS = Math.max(
+  1,
+  Number(process.env.SHARE_ROOM_CLEANUP_INTERVAL_HOURS || 6)
+);
 
 // ---------- HOI CHAN: DB helpers ----------
 async function hoichanInitTable() {
@@ -822,6 +830,95 @@ async function hoichanInitTable() {
     ON hoichan_messages(at DESC);
   `);
   console.log("[hoichan] table ready");
+}
+
+async function sharedRoomsInitTable() {
+  if (!pool) {
+    console.warn("[share] Missing DATABASE_URL => shared rooms will stay in memory only.");
+    return;
+  }
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS shared_form_rooms (
+      room_id TEXT PRIMARY KEY,
+      form_type TEXT,
+      state JSONB,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_accessed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '3 days')
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_shared_form_rooms_expires_at
+    ON shared_form_rooms (expires_at);
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_shared_form_rooms_form_type
+    ON shared_form_rooms (form_type);
+  `);
+  console.log("[share] table ready");
+}
+
+async function sharedRoomLoad(roomId) {
+  if (!pool || !roomId) return null;
+  const { rows } = await pool.query(
+    `SELECT room_id, form_type, state
+     FROM shared_form_rooms
+     WHERE room_id = $1
+       AND expires_at > NOW()
+     LIMIT 1`,
+    [roomId]
+  );
+  return rows[0] || null;
+}
+
+async function sharedRoomTouch(roomId, formType = null) {
+  if (!pool || !roomId) return;
+  await pool.query(
+    `UPDATE shared_form_rooms
+     SET form_type = COALESCE($2, form_type),
+         updated_at = NOW(),
+         last_accessed_at = NOW(),
+         expires_at = NOW() + make_interval(days => $3)
+     WHERE room_id = $1`,
+    [roomId, formType || null, SHARE_ROOM_TTL_DAYS]
+  );
+}
+
+async function sharedRoomUpsert(roomId, formType, state) {
+  if (!pool || !roomId) return;
+  await pool.query(
+    `INSERT INTO shared_form_rooms (
+       room_id, form_type, state, created_at, updated_at, last_accessed_at, expires_at
+     )
+     VALUES (
+       $1, $2, $3::jsonb, NOW(), NOW(), NOW(), NOW() + make_interval(days => $4)
+     )
+     ON CONFLICT (room_id) DO UPDATE
+     SET form_type = COALESCE(EXCLUDED.form_type, shared_form_rooms.form_type),
+         state = EXCLUDED.state,
+         updated_at = NOW(),
+         last_accessed_at = NOW(),
+         expires_at = NOW() + make_interval(days => $4)`,
+    [roomId, formType || null, JSON.stringify(state || {}), SHARE_ROOM_TTL_DAYS]
+  );
+}
+
+async function sharedRoomDelete(roomId) {
+  if (!pool || !roomId) return;
+  await pool.query("DELETE FROM shared_form_rooms WHERE room_id = $1", [roomId]);
+}
+
+async function sharedRoomsCleanupExpired() {
+  if (!pool) return;
+  const { rowCount } = await pool.query(
+    `DELETE FROM shared_form_rooms
+     WHERE expires_at <= NOW()`
+  );
+  if (rowCount > 0) {
+    console.log(`[share] cleaned ${rowCount} expired room(s)`);
+  }
 }
 
 async function hoichanLoadLatest(limit = 50) {
@@ -1141,13 +1238,18 @@ if (cleanupEnabled) {
   }, cleanupIntervalHours * 60 * 60 * 1000);
 }
 
-// ================== WS CŨ (BỆNH ÁN) - GIỮ NGUYÊN ==================
-// roomId -> { clients:Set<ws>, lastState:Object|null, locks:Map<string,{by:string,at:number}> }
+// ================== WS CŨ (BỆNH ÁN) ==================
+// roomId -> { clients:Set<ws>, lastState:Object|null, locks:Map<string,{by:string,at:number}>, formType:string|null }
 const rooms = new Map();
 
 function getRoom(roomId) {
   if (!rooms.has(roomId)) {
-    rooms.set(roomId, { clients: new Set(), lastState: null, locks: new Map() });
+    rooms.set(roomId, {
+      clients: new Set(),
+      lastState: null,
+      locks: new Map(),
+      formType: null
+    });
   }
   return rooms.get(roomId);
 }
@@ -1177,8 +1279,9 @@ function notifyPresence(roomId) {
 wss.on("connection", (ws) => {
   ws._roomId = null;
   ws._clientId = null;
+  ws._formType = null;
 
-  ws.on("message", (buf) => {
+  ws.on("message", async (buf) => {
     let msg;
     try {
       msg = JSON.parse(buf.toString());
@@ -1196,9 +1299,29 @@ wss.on("connection", (ws) => {
 
     if (type === "join") {
       const room = getRoom(roomId);
+      const formType = String(msg.formType || "").trim() || null;
+      if (formType) {
+        room.formType = formType;
+        ws._formType = formType;
+      }
+
+      if (!room.lastState) {
+        try {
+          const saved = await sharedRoomLoad(roomId);
+          if (saved) {
+            room.lastState =
+              saved.state && typeof saved.state === "object" ? saved.state : null;
+            room.formType = room.formType || saved.form_type || null;
+          }
+        } catch (e) {
+          console.error("[share] load room error", roomId, e);
+        }
+      }
+
       room.clients.add(ws);
       ws._roomId = roomId;
       if (by && !ws._clientId) ws._clientId = by;
+      if (!ws._formType && room.formType) ws._formType = room.formType;
 
       if (room.lastState) {
         safeSend(ws, {
@@ -1217,6 +1340,9 @@ wss.on("connection", (ws) => {
 
       safeSend(ws, { type: "joined", room: roomId });
       notifyPresence(roomId);
+      sharedRoomTouch(roomId, room.formType).catch((e) =>
+        console.error("[share] touch room error", roomId, e)
+      );
       return;
     }
 
@@ -1225,6 +1351,7 @@ wss.on("connection", (ws) => {
       room.clients.add(ws);
       ws._roomId = roomId;
       if (by && !ws._clientId) ws._clientId = by;
+      if (!ws._formType && room.formType) ws._formType = room.formType;
     }
 
     if (type === "lock") {
@@ -1279,6 +1406,11 @@ wss.on("connection", (ws) => {
       if (msg.payload && typeof msg.payload === "object") {
         room.lastState = msg.payload;
       }
+      const formType = String(msg.formType || "").trim() || null;
+      if (formType) {
+        room.formType = formType;
+        ws._formType = formType;
+      }
       broadcast(
         roomId,
         { type: "state", room: roomId, clientId, payload: msg.payload },
@@ -1295,6 +1427,9 @@ wss.on("connection", (ws) => {
       broadcast(roomId, { type: "locks", room: roomId, payload: {} }, null);
 
       broadcast(roomId, { type: "clear", room: roomId, clientId }, ws);
+      sharedRoomDelete(roomId).catch((e) =>
+        console.error("[share] delete room error", roomId, e)
+      );
     }
   });
 
@@ -1329,6 +1464,17 @@ wss.on("connection", (ws) => {
 
     room.clients.delete(ws);
     if (room.clients.size === 0) {
+      const stateToPersist = room.lastState;
+      const formTypeToPersist = room.formType || ws._formType || null;
+      if (stateToPersist && typeof stateToPersist === "object") {
+        sharedRoomUpsert(roomId, formTypeToPersist, stateToPersist).catch((e) =>
+          console.error("[share] persist room error", roomId, e)
+        );
+      } else {
+        sharedRoomDelete(roomId).catch((e) =>
+          console.error("[share] delete room error", roomId, e)
+        );
+      }
       rooms.delete(roomId);
     } else {
       notifyPresence(roomId);
@@ -1363,4 +1509,19 @@ server.listen(PORT, () => {
   commentsInitTable().catch((e) =>
     console.error("[comments] init table error", e)
   );
+  sharedRoomsInitTable().catch((e) =>
+    console.error("[share] init table error", e)
+  );
 });
+
+setTimeout(() => {
+  sharedRoomsCleanupExpired().catch((e) =>
+    console.error("[share] cleanup error", e)
+  );
+}, 20_000);
+
+setInterval(() => {
+  sharedRoomsCleanupExpired().catch((e) =>
+    console.error("[share] cleanup error", e)
+  );
+}, SHARE_ROOM_CLEANUP_INTERVAL_HOURS * 60 * 60 * 1000);

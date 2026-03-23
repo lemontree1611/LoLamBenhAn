@@ -1900,7 +1900,7 @@ if (chatInput) {
         </span>
       </div>
       <div class="share-hint">
-        Gửi cho người khác link phía trên để họ truy cập và làm bệnh án cùng bạn.
+        Lưu ý: Bệnh án sẽ tự động xóa sau 3 ngày không truy cập
       </div>
     `, true);
   }
@@ -2163,7 +2163,13 @@ if (chatInput) {
     state.ws = ws;
 
     ws.onopen = () => {
-      wsSend({ type: "join", room });
+      wsSend({
+        type: "join",
+        room,
+        formType: (window.location.pathname || "")
+          .replace(/\/index\.html?$/i, "")
+          .replace(/^\/+|\/+$/g, "") || "root"
+      });
       state.connected = true;
       // vẫn hiển thị Connecting… cho tới khi nhận presence/joined
       setShareStatus("connecting", state.onlineCount);
