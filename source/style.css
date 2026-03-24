@@ -977,31 +977,143 @@ input[type="number"] {
    SHARE TAB (Apple-style)
    ========================================================= */
 #share-notice{
-  margin: 10px auto 14px auto;
+  margin: 12px auto 18px auto;
   max-width: 1000px;
   width: 100%;
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: rgba(255,255,255,0.68);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.06);
-  backdrop-filter: blur(14px) saturate(160%);
-  -webkit-backdrop-filter: blur(14px) saturate(160%);
-  font-size: 14px;
-  line-height: 1.35;
   display: none;
 }
 
-.share-row{
+.share-card{
+  padding: 16px 18px;
+  border-radius: 22px;
+  background: rgba(255,255,255,0.8);
+  border: 1px solid rgba(255,255,255,0.7);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(18px) saturate(170%);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+}
+
+.share-row,
+.share-card-head{
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.share-card-head{
+  margin-bottom: 12px;
+}
+
+.share-card-status{
+  display: flex;
+  align-items: center;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.share-row .share-label{
-  font-weight: 600;
-  color:#1d1d1f;
+.share-pill{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.share-pill--success{
+  color: #0f766e;
+  background: rgba(20, 184, 166, 0.12);
+}
+
+.share-pill--warn{
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.14);
+}
+
+.share-card-title{
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.share-card-link{
+  display: block;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(245,247,250,0.92);
+  color: #1f2937;
+  text-decoration: none;
+  word-break: break-word;
+  border: 1px solid rgba(226,232,240,0.95);
+}
+
+.share-card-link:hover{
+  background: rgba(241,245,249,0.98);
+}
+
+.share-card-note{
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 14px;
+  border-radius: 16px;
+  background: rgba(255, 249, 235, 0.95);
+  color: #92400e;
+  border: 1px solid rgba(253, 230, 138, 0.95);
+}
+
+.share-card-note strong{
+  color: #7c2d12;
+}
+
+.share-copy-btn{
+  appearance: none;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255,255,255,0.92);
+  color: #111827;
+  border-radius: 999px;
+  padding: 10px 14px;
+  min-width: auto;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  transition: transform 0.18s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.share-copy-btn:hover{
+  background: rgba(255,255,255,1);
+  transform: translateY(-1px);
+}
+
+.share-copy-btn:active{
+  transform: translateY(0);
+}
+
+.share-copy-btn svg{
+  width: 18px;
+  height: 18px;
+  display: block;
+  flex: 0 0 auto;
+}
+
+.share-copy-btn.is-done{
+  color: #0f766e;
+  border-color: rgba(20, 184, 166, 0.22);
+  background: rgba(240, 253, 250, 0.98);
+}
+
+.share-copy-text{
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .share-link{
@@ -1216,6 +1328,32 @@ button.cls-suggest-item:active{
 }
 .share-muted{
   color:#6e6e73;
+}
+
+@media (max-width: 640px){
+  #share-notice{
+    margin: 10px auto 16px auto;
+  }
+
+  .share-card{
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .share-card-head{
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .share-copy-btn{
+    width: 100%;
+    justify-content: center;
+  }
+
+  .share-card-link,
+  .share-card-note{
+    font-size: 13px;
+  }
 }
 
 .markdown-body {

@@ -1941,6 +1941,87 @@ if (chatInput) {
     }, { once: true });
   }
 
+  function copyIconSVG() {
+    return `
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="9" y="9" width="10" height="10" rx="2.5" stroke="currentColor" stroke-width="1.8"></rect>
+        <path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+      </svg>
+    `.trim();
+  }
+
+  function copiedIconSVG() {
+    return `
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M6.5 12.5 10 16l7.5-8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    `.trim();
+  }
+
+  function renderSharedNotice(link) {
+    setNotice(`
+      <div class="share-card">
+        <div class="share-card-head">
+          <div class="share-card-status">
+            <span class="share-pill share-pill--success">Đã chia sẻ</span>
+            <span class="share-card-title">Lưu ý nổi bật</span>
+          </div>
+          <button type="button" class="share-copy-btn" id="share-copy-btn" data-link="${escapeHtml(link)}">
+            ${copyIconSVG()}
+            <span class="share-copy-text">Copy link</span>
+          </button>
+        </div>
+        <a class="share-card-link" href="${escapeHtml(link)}" target="_blank" rel="noopener">${escapeHtml(link)}</a>
+        <div class="share-card-note">
+          <span class="share-pill share-pill--warn">Lưu ý</span>
+          <div><strong>Bệnh án sẽ tự động xóa sau 3 ngày không truy cập.</strong></div>
+        </div>
+      </div>
+    `, true);
+  }
+
+  function renderConnectedNotice(room) {
+    setNotice(`
+      <div class="share-card">
+        <div class="share-card-head">
+          <div class="share-card-status">
+            <span class="share-pill share-pill--success">Đã kết nối</span>
+            <span class="share-card-title">Lưu ý nổi bật</span>
+          </div>
+          <button type="button" class="share-copy-btn" id="share-copy-btn" data-link="${escapeHtml(window.location.href)}">
+            ${copyIconSVG()}
+            <span class="share-copy-text">Copy link</span>
+          </button>
+        </div>
+        <div class="share-card-link">Room: ${escapeHtml(room)}</div>
+        <div class="share-card-note">
+          <span class="share-pill share-pill--warn">Lưu ý</span>
+          <div><strong>Bệnh án sẽ tự động xóa sau 3 ngày không truy cập.</strong> Mọi thay đổi trong phiên này sẽ tự động đồng bộ.</div>
+        </div>
+      </div>
+    `, true);
+  }
+
+  function bindNoticeCopyButton() {
+    if (!noticeEl) return;
+    const btn = noticeEl.querySelector("#share-copy-btn");
+    if (!btn) return;
+
+    btn.addEventListener("click", async () => {
+      const link = btn.getAttribute("data-link") || window.location.href;
+      const ok = await copyText(link);
+      if (!ok) return;
+
+      const old = btn.innerHTML;
+      btn.innerHTML = `${copiedIconSVG()}<span class="share-copy-text">Copied</span>`;
+      btn.classList.add("is-done");
+      window.setTimeout(() => {
+        btn.innerHTML = old;
+        btn.classList.remove("is-done");
+      }, 1200);
+    });
+  }
+
   function collectFields() {
     if (!formEl) return [];
     const els = Array.from(formEl.querySelectorAll("input[id], textarea[id], select[id]"));
