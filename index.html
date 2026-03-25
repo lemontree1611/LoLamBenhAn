@@ -173,7 +173,8 @@
         </div>
 
         <!-- Tứ trụ: Nội khoa, Tiền phẫu, Hậu phẫu, Sản khoa, Phụ khoa, Nhi khoa -->
-        <div class="card-grid" id="grid-tutu">
+        <div class="tab-panels" id="tab-panels">
+        <div class="card-grid is-active" id="grid-tutu">
             <a href="tutru/noikhoa/" class="card"><h3>Nội khoa</h3><p>Bệnh án nội khoa</p></a>
             <a href="tutru/tienphau/" class="card"><h3>Tiền phẫu</h3><p>Bệnh án tiền phẫu thuật</p></a>
             <a href="tutru/hauphau/" class="card"><h3>Hậu phẫu</h3><p>Bệnh án hậu phẫu thuật</p></a>
@@ -183,15 +184,16 @@
         </div>
 
         <!-- CK lẻ: GMHS -->
-        <div class="card-grid" id="grid-ckle" style="display:none;">
+        <div class="card-grid" id="grid-ckle">
             <a href="ckle/gmhs-sv/" class="card"><h3>Gây mê hồi sức</h3><p>Bệnh án dành cho sinh viên Y khoa</p></a>
             <a href="ckle/gmhs-bs/" class="card"><h3>Gây mê hồi sức</h3><p>Bệnh án dành cho bác sĩ sau đại học</p></a>
         </div>
 
         <!-- Khác: YHCT, Điều dưỡng -->
-        <div class="card-grid" id="grid-khac" style="display:none;">
+        <div class="card-grid" id="grid-khac">
             <a href="khac/yhct/" class="card"><h3>Y học cổ truyền</h3><p>Bệnh án Y học cổ truyền</p></a>
             <a href="#" class="card"><h3>Điều dưỡng</h3><p>Bệnh án điều dưỡng</p></a>
+        </div>
         </div>
 
         <!-- Comments Section -->
@@ -212,6 +214,21 @@
             </div>
 
             <div class="comments-list" id="comments-list">
+                <div class="comment-skeleton" aria-hidden="true">
+                    <div class="skeleton-line short"></div>
+                    <div class="skeleton-line mid"></div>
+                    <div class="skeleton-line long"></div>
+                </div>
+                <div class="comment-skeleton" aria-hidden="true">
+                    <div class="skeleton-line short"></div>
+                    <div class="skeleton-line mid"></div>
+                    <div class="skeleton-line long"></div>
+                </div>
+                <div class="comment-skeleton" aria-hidden="true">
+                    <div class="skeleton-line short"></div>
+                    <div class="skeleton-line mid"></div>
+                    <div class="skeleton-line long"></div>
+                </div>
                 <div class="loading">Đang tải góp ý...</div>
             </div>
 
@@ -232,12 +249,31 @@
         let comments = [];
         let currentPage = 1;
         const commentsPerPage = 5;
+        const commentsSkeletonCount = 3;
 
         // Admin token lưu local (đơn giản đúng như bạn muốn)
         let adminToken = localStorage.getItem('admin_token') || '';
         let isAdmin = !!adminToken;
 
+        function getCommentsSkeletonMarkup(count = commentsSkeletonCount) {
+            return Array.from({ length: count }, () => `
+                <div class="comment-skeleton" aria-hidden="true">
+                    <div class="skeleton-line short"></div>
+                    <div class="skeleton-line mid"></div>
+                    <div class="skeleton-line long"></div>
+                </div>
+            `).join('');
+        }
+
+        function showCommentsSkeleton() {
+            const commentsList = document.getElementById('comments-list');
+            const pagination = document.getElementById('pagination');
+            if (commentsList) commentsList.innerHTML = getCommentsSkeletonMarkup();
+            if (pagination) pagination.innerHTML = '';
+        }
+
         async function loadComments() {
+            showCommentsSkeleton();
             try {
                 const response = await fetch(`${API_BASE}/comments`, { cache: 'no-store' });
                 const data = await response.json();
@@ -621,8 +657,10 @@
     // init slider position theo nút đang active
     const initIdx = Array.from(buttons).findIndex(b => b.classList.contains('active'));
     if(initIdx >= 0 && slider) slider.style.transform = `translateX(${initIdx * 100}%)`;
+    let currentIdx = initIdx >= 0 ? initIdx : 0;
 
     function switchTab(tab, idx){
+        if(idx === currentIdx) return;
         // update buttons
         buttons.forEach(b => b.classList.remove('active'));
         document.querySelector(`.tab-toggle-btn[data-tab="${tab}"]`).classList.add('active');
@@ -630,23 +668,18 @@
         // slide
         if(slider) slider.style.transform = `translateX(${idx * 100}%)`;
 
-        // swap grids with fade
-        Object.keys(grids).forEach(key => {
-            const el = grids[key];
-            if(key === tab){
-                // hide others first, then show this
-                el.style.display = 'grid';
-                void el.offsetHeight; // reflow
-                el.classList.add('tab-enter');
-                setTimeout(()=> el.classList.remove('tab-enter'), 320);
-            } else {
-                el.classList.add('tab-exit');
-                setTimeout(()=>{
-                    el.style.display = 'none';
-                    el.classList.remove('tab-exit');
-                }, 220);
-            }
+        Object.values(grids).forEach(el => {
+            el.classList.remove('is-active', 'tab-panel-in');
         });
+
+        const activeGrid = grids[tab];
+        if(activeGrid){
+            activeGrid.classList.add('is-active');
+            void activeGrid.offsetHeight; // reflow to restart animation cleanly
+            activeGrid.classList.add('tab-panel-in');
+            setTimeout(() => activeGrid.classList.remove('tab-panel-in'), 280);
+        }
+        currentIdx = idx;
     }
 
     buttons.forEach((btn, idx) => {
