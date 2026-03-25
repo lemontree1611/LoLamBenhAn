@@ -9,7 +9,8 @@ Thời gian đông cầm máu
 Tủy đồ (chọc hút/sinh thiết tủy)
 
 [Sinh hóa]
-Đường huyết (đói, sau ăn, HbA1c)
+Glucose máu
+HbA1c
 Chức năng gan: AST, ALT
 Định lượng bilirubin (tp, tt, gt)
 Chức năng thận: Ure, Creatinin, eGFR
@@ -42,7 +43,10 @@ RF, Anti-CCP
 ANA, Anti-dsDNA
 Bổ thể C3, C4
 IgG, IgA, IgM, IgE
-Test nhanh: Ns1, COVID-19…
+Test nhanh: Ns1, COVID-19
+HBsAg, HBeAg
+HBV-DNA, HCV-RNA
+Anti-HBs, Anti-HBc, Anti-HBe, Anti-HCV
 
 [Vi sinh]
 Soi – cấy vi khuẩn (máu, nước tiểu, đàm…)
@@ -72,7 +76,7 @@ X-quang có tiêm cản quang (dạ dày, đại tràng, tiết niệu…)
 
 [Siêu âm]
 Siêu âm bụng
-Siêu âm mạch máu chi
+Siêu âm mạch máu ngoại vi
 Siêu âm Doppler
 Siêu âm đầu dò âm đạo
 Siêu âm đàn hồi mô
@@ -87,6 +91,7 @@ MRI sọ não
 MRI cột sống cổ, ngực, thắt lưng
 MRI khớp
 MRI mạch máu (MRA)
+MRCP
 Xạ hình xương
 Xạ hình tuyến giáp
 PET/CT
@@ -97,6 +102,7 @@ Nội soi dạ dày – tá tràng
 Nội soi đại tràng
 Nội soi mật tụy ngược dòng (ERCP)
 Đo pH thực quản
+Test hơi thở
 
 [Thần kinh]
 Điện não đồ (EEG)
@@ -108,10 +114,19 @@ Ghi điện thế gợi
 Nội soi tai mũi họng
 
 [Sản phụ]
-Monitoring tim thai
+CTG
+NST
+HPV test
+HPV DNA
+Co-testing Pap + HPV
 Soi cổ tử cung
 Nitrazin Test
 Động học beta-HCG
+Định lượng Beta-HCG
+Nạo sinh thiết tầng
+Định lượng FSH, LH, Estradiol, Progesterol
+Chụp nhũ ảnh
+Siêu âm tuyến vú
 
 [Thủ thuật & Can thiệp]
 Chọc dò dịch não tủy
@@ -119,3 +134,12 @@ Chọc hút/sinh thiết kim nhỏ
 Can thiệp mạch
 Nội soi can thiệp
 Thủ thuật chẩn đoán dưới hướng dẫn hình ảnh (siêu âm/x-quang)
+
+[Ung thư học]
+Định lượng CEA
+Định lượng AFP
+Định lượng PSA
+Định lượng CA 15-3
+Định lượng CA 125
+Định lượng CA 19-9
+Định lượng CYFRA 21-1, SCC
