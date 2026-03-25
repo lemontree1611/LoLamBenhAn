@@ -395,7 +395,7 @@ function buildHTMLDoc() {
   <p>- Sinh hiệu: Mạch ${escapeHtml(data.mach)} lần/phút, nhiệt độ ${escapeHtml(data.nhietdo)} °C,
     HA ${escapeHtml(data.ha_tren)}/${escapeHtml(data.ha_duoi)} mmHg, nhịp thở ${escapeHtml(data.nhiptho)} lần/phút</p>
   <p>- Chiều cao ${escapeHtml(data.chieucao)} cm, cân nặng ${escapeHtml(data.cannang)} kg,
-    BMI ${escapeHtml(data.bmi)} kg/m² (Phân loại ${escapeHtml(data.phanloai)} theo WHO Asia)</p>
+    BMI ${escapeHtml(data.bmi)} kg/m² (Phân loại ${escapeHtml(data.phanloai)} theo IDI & WPRO)</p>
   <p style="margin-top:8px;"><b>Khám tiền mê:</b> ASA ${escapeHtml(data.asa)}; Mallampati ${escapeHtml(data.mallampati)}</p>
   <p>${nl2br(data.kham_tienme)}</p>
 
@@ -615,7 +615,7 @@ async function generateDocx() {
           // VI
           paraHeading("VI. KHÁM LÂM SÀNG", { spacing: { ...basePara.spacing, before: 160, after: 40 } }),
           para(`- Sinh hiệu: Mạch ${data.mach} lần/phút, nhiệt độ ${data.nhietdo} °C, HA ${data.ha_tren}/${data.ha_duoi} mmHg, nhịp thở ${data.nhiptho} lần/phút`),
-          para(`- Chiều cao ${data.chieucao} cm, cân nặng ${data.cannang} kg, BMI ${data.bmi} kg/m² (Phân loại ${data.phanloai} theo WHO Asia)`),
+          para(`- Chiều cao ${data.chieucao} cm, cân nặng ${data.cannang} kg, BMI ${data.bmi} kg/m² (Phân loại ${data.phanloai} theo IDI & WPRO)`),
           para(`- Khám tiền mê: ASA ${data.asa}; Mallampati ${data.mallampati}`),
           ...textToParagraphs(data.kham_tienme),
 
