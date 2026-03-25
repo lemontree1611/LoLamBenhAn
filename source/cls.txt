@@ -43,7 +43,7 @@ RF, Anti-CCP
 ANA, Anti-dsDNA
 Bổ thể C3, C4
 IgG, IgA, IgM, IgE
-Test nhanh: Ns1, COVID-19
+Ns1 test
 HBsAg, HBeAg
 HBV-DNA, HCV-RNA
 Anti-HBs, Anti-HBc, Anti-HBe, Anti-HCV
