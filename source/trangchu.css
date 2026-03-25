@@ -466,7 +466,7 @@ footer{
 footer p{color:var(--muted2);font-size:.92rem}
 
 @media (max-width:768px){
-  header{margin-top:20px}
+  header{margin-top:40px}
   h1{font-size:2.1rem}
   .subtitle{font-size:1rem}
 
