@@ -147,6 +147,7 @@ function getFormData() {
     lydo: getField('lydo'),
     benhsu_truocmo: getField('benhsu_truocmo'),
     benhsu_cd_truocmo: getField('benhsu_cd_truocmo'),
+    benhsu_cd_saumo: getField('benhsu_cd_saumo'),
     benhsu_phanloai: getField('benhsu_phanloai'),
     benhsu_thoigian: getField('benhsu_thoigian'),
     benhsu_phuongphap: getField('benhsu_phuongphap'),
@@ -256,12 +257,13 @@ function buildHTMLDoc() {
     ${nl2br(data.benhsu_truocmo)}</p>
 
     <p><b>Quá trình mổ</b><br/>
-    - Chẩn đoán trước mổ: ${nl2br(data.benhsu_cd_truocmo)}<br/>
-    - Phân loại: ${nl2br(data.benhsu_phanloai)}<br/>
-    - Thời gian mổ: ${nl2br(data.benhsu_thoigian)}<br/>
-    - Phương pháp: ${nl2br(data.benhsu_phuongphap)}<br/>
-    - Tường trình phẫu thuật:<br/>
-    ${nl2br(data.benhsu_tuongtrinh)}
+    Chẩn đoán trước mổ: ${nl2br(data.benhsu_cd_truocmo)}<br/>
+    Phân loại: ${nl2br(data.benhsu_phanloai)}<br/>
+    Thời gian mổ: ${nl2br(data.benhsu_thoigian)}<br/>
+    Phương pháp: ${nl2br(data.benhsu_phuongphap)}<br/>
+    Tường trình phẫu thuật:<br/>
+    ${nl2br(data.benhsu_tuongtrinh)}<br/>
+    Chẩn đoán sau mổ: ${nl2br(data.benhsu_cd_saumo)}
     </p>
 
     <p><b>Diễn tiến hậu phẫu</b><br/>
@@ -502,12 +504,13 @@ async function generateDocx() {
             ...textToParagraphs(data.benhsu_truocmo),
 
             paraHeading("", "Quá trình mổ", { spacing:{before:40} }),
-            para(`- Chẩn đoán trước mổ: ${data.benhsu_cd_truocmo}`),
-            para(`- Phân loại: ${data.benhsu_phanloai}`),
-            para(`- Thời gian mổ: ${data.benhsu_thoigian}`),
-            para(`- Phương pháp: ${data.benhsu_phuongphap}`),
-            para("- Tường trình phẫu thuật:"),
+            para(`Chẩn đoán trước mổ: ${data.benhsu_cd_truocmo}`),
+            para(`Phân loại: ${data.benhsu_phanloai}`),
+            para(`Thời gian mổ: ${data.benhsu_thoigian}`),
+            para(`Phương pháp: ${data.benhsu_phuongphap}`),
+            para("Tường trình phẫu thuật:"),
             ...textToParagraphs(data.benhsu_tuongtrinh),
+            para(`Chẩn đoán sau mổ: ${data.benhsu_cd_saumo}`),
 
             paraHeading("", "Diễn tiến hậu phẫu", { spacing:{before:40} }),
             ...textToParagraphs(data.benhsu_hauphau),
