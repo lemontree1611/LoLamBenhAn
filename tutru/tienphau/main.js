@@ -1453,13 +1453,6 @@ async function runAutoDiagnosis(tomtat) {
 }
 
 // Chỉ auto khi người dùng rời ô tóm tắt (blur)
-const tomtatEl = document.getElementById("tomtat");
-if (tomtatEl) {
-  tomtatEl.addEventListener("blur", (e) => {
-    if (e && e.isTrusted === false) return;
-    scheduleAutoDiagnosis(true);
-  });
-}
 
 // ===============================
 //  CLS AI SUPPORT (button)
