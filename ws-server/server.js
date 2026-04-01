@@ -154,15 +154,7 @@ async function getDbHealth(timeoutMs) {
   }
 }
 
-app.get("/healthz", (req, res) => {
-  return res.status(200).json({
-    ok: true,
-    service: "up",
-    uptime_sec: Math.floor(process.uptime())
-  });
-});
-
-app.get("/readyz", async (req, res) => {
+async function handleHealthCheck(req, res) {
   const startedAt = Date.now();
   const dbHealth = await getDbHealth(Number(process.env.HEALTH_DB_TIMEOUT_MS || 1500));
   return res.status(dbHealth.ok ? 200 : 503).json({
@@ -173,7 +165,9 @@ app.get("/readyz", async (req, res) => {
     latency_ms: Date.now() - startedAt,
     ...(dbHealth.error ? { error: dbHealth.error } : {})
   });
-});
+}
+
+app.get("/healthz", handleHealthCheck);
 
 // ================== POSTGRES (COMMENTS + HOICHAN) ==================
 const DATABASE_URL = process.env.DATABASE_URL || "";
