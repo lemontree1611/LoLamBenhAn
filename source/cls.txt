@@ -12,17 +12,20 @@ Tủy đồ (chọc hút/sinh thiết tủy)
 Glucose máu
 HbA1c
 Chức năng gan: AST, ALT
+Chức năng giáp: TSH, FT3, FT4
+Anti-TPO, TRAb, Anti-Tg
 Định lượng bilirubin (tp, tt, gt)
-Chức năng thận: Ure, Creatinin, eGFR
+Chức năng thận: Creatinin, eGFR
 Điện giải đồ: Na⁺, K⁺, Cl⁻
 Định lượng Ca²⁺, Mg²⁺, Phospho
 Mỡ máu: Cholesterol, HDL, LDL, Triglycerid
 Định lượng acid uric
-Định lượng albumin HT
+Albumin HT
 Lactate máu
 
 [Tim mạch]
-Men tim: CK, CK-MB, Troponin
+Men tim: CK, CK-MB, Troponin I/T
+ NT-proBNP
 Điện tâm đồ (ECG)
 Holter ECG
 Holter huyết áp
