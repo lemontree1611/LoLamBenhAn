@@ -1,0 +1,23 @@
+name: Keep Warm Render
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Ping Render health endpoint
+        env:
+          KEEP_WARM_URL: https://lolambenhan-0be9.onrender.com/healthz
+        run: |
+          echo "Pinging $KEEP_WARM_URL"
+          curl --fail --silent --show-error --location \
+            --max-time 60 \
+            --retry 2 \
+            --retry-delay 5 \
+            "$KEEP_WARM_URL"

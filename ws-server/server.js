@@ -119,35 +119,60 @@ app.get("/", (req, res) => {
   res.send("WS + Gemini API server is running.");
 });
 
-app.get("/healthz", async (req, res) => {
+function withTimeout(promise, ms, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(message || "Operation timed out")), ms)
+    )
+  ]);
+}
+
+async function getDbHealth(timeoutMs) {
+  if (!pool) {
+    return {
+      ok: true,
+      db: "not_configured"
+    };
+  }
+
   const startedAt = Date.now();
   try {
-    if (!pool) {
-      return res.status(200).json({
-        ok: true,
-        service: "up",
-        db: "not_configured",
-        uptime_sec: Math.floor(process.uptime())
-      });
-    }
-
-    await pool.query("select 1");
-    return res.status(200).json({
+    await withTimeout(pool.query("select 1"), timeoutMs, "DB health check timed out");
+    return {
       ok: true,
-      service: "up",
       db: "up",
-      uptime_sec: Math.floor(process.uptime()),
       latency_ms: Date.now() - startedAt
-    });
+    };
   } catch (e) {
-    return res.status(503).json({
+    return {
       ok: false,
-      service: "up",
       db: "down",
-      uptime_sec: Math.floor(process.uptime()),
-      latency_ms: Date.now() - startedAt
-    });
+      latency_ms: Date.now() - startedAt,
+      error: String(e?.message || "DB check failed")
+    };
   }
+}
+
+app.get("/healthz", (req, res) => {
+  return res.status(200).json({
+    ok: true,
+    service: "up",
+    uptime_sec: Math.floor(process.uptime())
+  });
+});
+
+app.get("/readyz", async (req, res) => {
+  const startedAt = Date.now();
+  const dbHealth = await getDbHealth(Number(process.env.HEALTH_DB_TIMEOUT_MS || 1500));
+  return res.status(dbHealth.ok ? 200 : 503).json({
+    ok: dbHealth.ok,
+    service: "up",
+    db: dbHealth.db,
+    uptime_sec: Math.floor(process.uptime()),
+    latency_ms: Date.now() - startedAt,
+    ...(dbHealth.error ? { error: dbHealth.error } : {})
+  });
 });
 
 // ================== POSTGRES (COMMENTS + HOICHAN) ==================
@@ -163,7 +188,9 @@ if (DATABASE_URL) {
 
   pool = new Pool({
     connectionString: DATABASE_URL,
-    ssl: needsSSL ? { rejectUnauthorized: false } : false
+    ssl: needsSSL ? { rejectUnauthorized: false } : false,
+    connectionTimeoutMillis: Number(process.env.PG_CONNECTION_TIMEOUT_MS || 1500),
+    idleTimeoutMillis: Number(process.env.PG_IDLE_TIMEOUT_MS || 10000)
   });
 } else {
   console.warn("Missing DATABASE_URL - comments APIs will not work until set.");
