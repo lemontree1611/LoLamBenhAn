@@ -119,6 +119,11 @@ app.get("/", (req, res) => {
   res.send("WS + Gemini API server is running.");
 });
 
+function envMs(name, fallback) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
 function withTimeout(promise, ms, message) {
   return Promise.race([
     promise,
@@ -156,7 +161,9 @@ async function getDbHealth(timeoutMs) {
 
 async function handleHealthCheck(req, res) {
   const startedAt = Date.now();
-  const dbHealth = await getDbHealth(Number(process.env.HEALTH_DB_TIMEOUT_MS || 1500));
+  const dbHealth = await getDbHealth(
+    envMs("HEALTH_DB_TIMEOUT_MS", envMs("PG_CONNECTION_TIMEOUT_MS", 5000))
+  );
   return res.status(dbHealth.ok ? 200 : 503).json({
     ok: dbHealth.ok,
     service: "up",
@@ -183,8 +190,12 @@ if (DATABASE_URL) {
   pool = new Pool({
     connectionString: DATABASE_URL,
     ssl: needsSSL ? { rejectUnauthorized: false } : false,
-    connectionTimeoutMillis: Number(process.env.PG_CONNECTION_TIMEOUT_MS || 1500),
-    idleTimeoutMillis: Number(process.env.PG_IDLE_TIMEOUT_MS || 10000)
+    connectionTimeoutMillis: envMs("PG_CONNECTION_TIMEOUT_MS", 5000),
+    idleTimeoutMillis: envMs("PG_IDLE_TIMEOUT_MS", 10000)
+  });
+
+  pool.on("error", (err) => {
+    console.error("[db] unexpected pool error", err);
   });
 } else {
   console.warn("Missing DATABASE_URL - comments APIs will not work until set.");
