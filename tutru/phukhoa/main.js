@@ -185,7 +185,12 @@ function updateTomtat() {
 
   const text = `Bệnh nhân ${ageText} tuổi, PARA ${paraText}, kinh cuối ${kinhCuoiText}, vào viện vì lý do ${reasonText}. Qua hỏi bệnh, khám bệnh ghi nhận:`;
   const el = document.getElementById("tomtat");
-  if (el) el.value = text;
+  if (!el) return;
+
+  const current = (el.value || "").trim();
+  if (current && current !== text) return;
+
+  el.value = text;
 }
 
 ["lydo", "para"].forEach(id => {

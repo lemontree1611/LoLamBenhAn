@@ -93,7 +93,12 @@ function updateTomtat() {
 
   const text = `Bệnh nhân ${gioitinh} ${tuoi} tuổi vào viện vì ${lydo}. Qua hỏi bệnh, khám bệnh ghi nhận:`;
   const el = document.getElementById("tomtat");
-  if (el) el.value = text;
+  if (!el) return;
+
+  const current = (el.value || "").trim();
+  if (current && current !== text) return;
+
+  el.value = text;
 }
 
 ["gioitinh", "lydo"].forEach(id => {
