@@ -646,9 +646,9 @@ async function generateDocx() {
       const first = lines.shift() ?? "";
 
       const out = [];
-      const firstIndentLeft = getSmartParagraphIndent(first);
+      const firstIsBullet = parseSmartBulletLine(first).level !== null;
 
-      if (firstIndentLeft) {
+      if (firstIsBullet) {
         out.push(new docx.Paragraph({
           ...basePara,
           ...opts,
