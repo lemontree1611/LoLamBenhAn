@@ -273,18 +273,16 @@ function buildHTMLDoc() {
 
   <p style="margin-top:10px;"><b>II. Khám bệnh</b></p>
   <p><b>1. Toàn trạng:</b><br/>
-    - Sinh hiệu: Mạch ${escapeHtml(data.mach)} lần/phút, nhiệt độ: ${escapeHtml(data.nhietdo)} °C,
-      Huyết áp ${escapeHtml(data.ha_tren)}/${escapeHtml(data.ha_duoi)} mmHg, nhịp thở: ${escapeHtml(data.nhiptho)} lần/phút<br/>
-    - Chiều cao: ${escapeHtml(data.chieucao)} cm, cân nặng: ${escapeHtml(data.cannang)} kg,
-      BMI = ${escapeHtml(data.bmi)} kg/m² => Phân loại ${escapeHtml(data.phanloai)} theo IDI & WPRO<br/>
+    ${formatSmartPreviewLine(`- Sinh hiệu: Mạch ${data.mach} lần/phút, nhiệt độ: ${data.nhietdo} °C, Huyết áp ${data.ha_tren}/${data.ha_duoi} mmHg, nhịp thở: ${data.nhiptho} lần/phút`)}<br/>
+    ${formatSmartPreviewLine(`- Chiều cao: ${data.chieucao} cm, cân nặng: ${data.cannang} kg, BMI = ${data.bmi} kg/m² => Phân loại ${data.phanloai} theo IDI & WPRO`)}<br/>
     ${nl2br(data.tongtrang)}
   </p>
 
   <p style="margin-top:6px;"><b>2. Khám bộ phận:</b></p>
 <p><b>a) Cơ quan tổn thương:</b> ${escapeHtml(data.coquan_tonthuong)}</p>
 <p><b>b) Khám tiền mê:</b></p>
-<p>- Đánh giá ASA: ${escapeHtml(data.asa)}</p>
-<p>- Mallampati: ${escapeHtml(data.mallampati)}</p>
+<p>${formatSmartPreviewLine(`- Đánh giá ASA: ${data.asa}`)}</p>
+<p>${formatSmartPreviewLine(`- Mallampati: ${data.mallampati}`)}</p>
 <p>${nl2br(data.kham_tienme)}</p>
 
   <p style="margin-top:6px;"><b>3. Các cơ quan:</b></p>
@@ -390,13 +388,7 @@ async function generateDocx() {
     }
 
     function para(text, opts = {}) {
-      return new docx.Paragraph({
-        ...basePara,
-        ...opts,
-        children: [
-          new docx.TextRun({ text: text || "", bold: false, ...runBase, ...(opts.run || {}) }),
-        ],
-      });
+      return buildSmartParagraph(text, opts);
     }
 
     // Dùng cho TIÊU ĐỀ/MỤC: đậm toàn dòng

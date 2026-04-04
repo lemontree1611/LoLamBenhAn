@@ -494,10 +494,8 @@ function buildHTMLDoc() {
 
   <p style="margin-top:10px;"><b>II. Khám bệnh</b></p>
   <p><b>1. Toàn trạng:</b><br/>
-    - Sinh hiệu: Mạch ${escapeHtml(data.mach)} lần/phút, nhiệt độ: ${escapeHtml(data.nhietdo)} °C,
-      Huyết áp ${escapeHtml(data.ha_tren)}/${escapeHtml(data.ha_duoi)} mmHg, nhịp thở: ${escapeHtml(data.nhiptho)} lần/phút<br/>
-    - Chiều cao: ${escapeHtml(data.chieucao)} cm, cân nặng: ${escapeHtml(data.cannang)} kg,
-      Đánh giá Z-score: ${escapeHtml(data.wa)}; ${escapeHtml(data.ha)}; ${escapeHtml(data.wh)}<br/>
+    ${formatSmartPreviewLine(`- Sinh hiệu: Mạch ${data.mach} lần/phút, nhiệt độ: ${data.nhietdo} °C, Huyết áp ${data.ha_tren}/${data.ha_duoi} mmHg, nhịp thở: ${data.nhiptho} lần/phút`)}<br/>
+    ${formatSmartPreviewLine(`- Chiều cao: ${data.chieucao} cm, cân nặng: ${data.cannang} kg, Đánh giá Z-score: ${data.wa}; ${data.ha}; ${data.wh}`)}<br/>
     ${nl2br(data.tongtrang)}
   </p>
 
@@ -612,13 +610,7 @@ async function generateDocx() {
     }
 
     function para(text, opts = {}) {
-      return new docx.Paragraph({
-        ...basePara,
-        ...opts,
-        children: [
-          new docx.TextRun({ text: text || "", bold: false, ...runBase, ...(opts.run || {}) }),
-        ],
-      });
+      return buildSmartParagraph(text, opts);
     }
 
     // Dùng cho TIÊU ĐỀ/MỤC: đậm toàn dòng

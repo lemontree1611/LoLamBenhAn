@@ -324,11 +324,11 @@ function buildHTMLDoc() {
 
   const kcLine = data.kinhCuoiMode === 'quen'
     ? 'Kinh cuối: Quên'
-    : `Kinh cuối: ${escapeHtml(data.kinhCuoiText)}${data.kinhCuoiTinhChat ? `, tính chất: ${escapeHtml(data.kinhCuoiTinhChat)}` : ''}`;
+    : `Kinh cuối: ${data.kinhCuoiText}${data.kinhCuoiTinhChat ? `, tính chất: ${data.kinhCuoiTinhChat}` : ''}`;
 
   const kacLine = data.kinhApCuoiMode === 'quen'
     ? 'Kinh áp cuối: Quên'
-    : `Kinh áp cuối: ${escapeHtml(data.kinhApCuoiText)}`;
+    : `Kinh áp cuối: ${data.kinhApCuoiText}`;
 
   return `
 <!doctype html>
@@ -372,16 +372,14 @@ function buildHTMLDoc() {
   <p><b>1. Lý do vào viện:</b> ${nl2br(data.lydo)}</p>
   <p><b>2. Tiền sử:</b><br/>${nl2br(data.tiensu)}</p>
   <p><b>3. Bệnh sử:</b></p>
-  <p>- ${kcLine}</p>
-  <p>- ${kacLine}</p>
+  <p>${formatSmartPreviewLine(`- ${kcLine}`)}</p>
+  <p>${formatSmartPreviewLine(`- ${kacLine}`)}</p>
   <p>${nl2br(data.benhsu_nhapvien)}</p>
 
   <p style="margin-top:10px;"><b>II. Khám bệnh</b></p>
   <p><b>1. Toàn trạng:</b><br/>
-    - Sinh hiệu: Mạch ${escapeHtml(data.mach)} lần/phút, nhiệt độ: ${escapeHtml(data.nhietdo)} °C,
-      Huyết áp ${escapeHtml(data.ha_tren)}/${escapeHtml(data.ha_duoi)} mmHg, nhịp thở: ${escapeHtml(data.nhiptho)} lần/phút<br/>
-    - Chiều cao: ${escapeHtml(data.chieucao)} cm, cân nặng: ${escapeHtml(data.cannang)} kg,
-      BMI = ${escapeHtml(data.bmi)} kg/m² => Phân loại ${escapeHtml(data.phanloai)} theo IDI & WPRO<br/>
+    ${formatSmartPreviewLine(`- Sinh hiệu: Mạch ${data.mach} lần/phút, nhiệt độ: ${data.nhietdo} °C, Huyết áp ${data.ha_tren}/${data.ha_duoi} mmHg, nhịp thở: ${data.nhiptho} lần/phút`)}<br/>
+    ${formatSmartPreviewLine(`- Chiều cao: ${data.chieucao} cm, cân nặng: ${data.cannang} kg, BMI = ${data.bmi} kg/m² => Phân loại ${data.phanloai} theo IDI & WPRO`)}<br/>
     ${nl2br(data.tongtrang)}
   </p>
 
@@ -498,13 +496,7 @@ async function generateDocx() {
     }
 
     function para(text, opts = {}) {
-      return new docx.Paragraph({
-        ...basePara,
-        ...opts,
-        children: [
-          new docx.TextRun({ text: text || "", bold: false, ...runBase, ...(opts.run || {}) }),
-        ],
-      });
+      return buildSmartParagraph(text, opts);
     }
 
     function paraHeading(prefixBold, titleBold, opts = {}) {

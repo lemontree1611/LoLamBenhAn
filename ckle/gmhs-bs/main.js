@@ -403,10 +403,8 @@ function buildHTMLDoc() {
   <p style="margin-top:6px;">${nl2br(data.canlamsang_khac)}</p>
 
   <p style="margin-top:12px;"><b>VI. KHÁM LÂM SÀNG</b></p>
-  <p>- Sinh hiệu: Mạch ${escapeHtml(data.mach)} lần/phút, nhiệt độ ${escapeHtml(data.nhietdo)} °C,
-    HA ${escapeHtml(data.ha_tren)}/${escapeHtml(data.ha_duoi)} mmHg, nhịp thở ${escapeHtml(data.nhiptho)} lần/phút</p>
-  <p>- Chiều cao ${escapeHtml(data.chieucao)} cm, cân nặng ${escapeHtml(data.cannang)} kg,
-    BMI ${escapeHtml(data.bmi)} kg/m² (Phân loại ${escapeHtml(data.phanloai)} theo IDI & WPRO)</p>
+  <p>${formatSmartPreviewLine(`- Sinh hiệu: Mạch ${data.mach} lần/phút, nhiệt độ ${data.nhietdo} °C, HA ${data.ha_tren}/${data.ha_duoi} mmHg, nhịp thở ${data.nhiptho} lần/phút`)}</p>
+  <p>${formatSmartPreviewLine(`- Chiều cao ${data.chieucao} cm, cân nặng ${data.cannang} kg, BMI ${data.bmi} kg/m² (Phân loại ${data.phanloai} theo IDI & WPRO)`)}</p>
   <p style="margin-top:8px;"><b>Khám tiền mê:</b> ASA ${escapeHtml(data.asa)}; Mallampati ${escapeHtml(data.mallampati)}</p>
   <p>${nl2br(data.kham_tienme)}</p>
 
@@ -510,13 +508,7 @@ async function generateDocx() {
     }
 
     function para(text, opts = {}) {
-      return new docx.Paragraph({
-        ...basePara,
-        ...opts,
-        children: [
-          new docx.TextRun({ text: text || "", bold: false, ...runBase, ...(opts.run || {}) }),
-        ],
-      });
+      return buildSmartParagraph(text, opts);
     }
 
     function paraHeading(text, opts = {}) {
