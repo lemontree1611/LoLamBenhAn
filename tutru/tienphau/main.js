@@ -122,8 +122,19 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+function formatSmartPreviewLine(line) {
+  const raw = String(line ?? "");
+  const escaped = escapeHtml(raw);
+  if (raw.startsWith("- ")) return `<span style="display:inline-block;margin-left:0.5cm;">${escaped}</span>`;
+  if (raw.startsWith("+ ")) return `<span style="display:inline-block;margin-left:1cm;">${escaped}</span>`;
+  return escaped;
+}
+
 function nl2br(s) {
-  return escapeHtml(s).replace(/\n/g, '<br/>');
+  return String(s || "")
+    .split(/\r?\n/)
+    .map(formatSmartPreviewLine)
+    .join('<br/>');
 }
 
 function formatNgayGio(val) {
@@ -348,6 +359,30 @@ async function generateDocx() {
       spacing: { line: LINE_15, lineRule: docx.LineRuleType.AUTO },
     };
 
+    const SMART_INDENT_HALF_CM = 283;
+    const SMART_INDENT_ONE_CM = 567;
+
+    function getSmartParagraphIndent(text) {
+      const line = String(text || "");
+      if (line.startsWith("- ")) return SMART_INDENT_HALF_CM;
+      if (line.startsWith("+ ")) return SMART_INDENT_ONE_CM;
+      return 0;
+    }
+
+    function buildSmartParagraph(text, opts = {}) {
+      const indentLeft = getSmartParagraphIndent(text);
+      const paragraphOpts = { ...basePara, ...opts };
+      if (indentLeft) {
+        paragraphOpts.indent = { ...(paragraphOpts.indent || {}), left: indentLeft };
+      }
+      return new docx.Paragraph({
+        ...paragraphOpts,
+        children: [
+          new docx.TextRun({ text: text || "", bold: false, ...runBase, ...(opts.run || {}) }),
+        ],
+      });
+    }
+
     function para(text, opts = {}) {
       return new docx.Paragraph({
         ...basePara,
@@ -387,24 +422,36 @@ async function generateDocx() {
       const lines = String(valueText || "").split(/\r?\n/);
       const first = lines.shift() ?? "";
 
-      const out = [
-        new docx.Paragraph({
+      const out = [];
+      const firstIndentLeft = getSmartParagraphIndent(first);
+
+      if (firstIndentLeft) {
+        out.push(new docx.Paragraph({
+          ...basePara,
+          ...opts,
+          children: [
+            new docx.TextRun({ text: labelBold || "", bold: true, ...runBase }),
+          ],
+        }));
+        out.push(buildSmartParagraph(first));
+      } else {
+        out.push(new docx.Paragraph({
           ...basePara,
           ...opts,
           children: [
             new docx.TextRun({ text: labelBold || "", bold: true, ...runBase }),
             new docx.TextRun({ text: first, bold: false, ...runBase }),
           ],
-        }),
-      ];
+        }));
+      }
 
-      for (const line of lines) out.push(para(line));
+      for (const line of lines) out.push(buildSmartParagraph(line));
       return out;
     }
 
     function textToParagraphs(text) {
       if (!text) return [];
-      return String(text).split(/\r?\n/).map(line => para(line));
+      return String(text).split(/\r?\n/).map(line => buildSmartParagraph(line));
     }
 
     // Dòng "3. Năm sinh: xxxx (xx tuổi)" -> (xx tuổi) KHÔNG đậm
