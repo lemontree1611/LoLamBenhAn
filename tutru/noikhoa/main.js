@@ -122,12 +122,30 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
-function formatSmartPreviewLine(line) {
+function normalizeSmartBulletLine(line) {
   const raw = String(line ?? "");
-  const escaped = escapeHtml(raw);
-  if (raw.startsWith("- ")) return `<span style="display:inline-block;margin-left:0.5cm;">${escaped}</span>`;
-  if (raw.startsWith("+ ")) return `<span style="display:inline-block;margin-left:1cm;">${escaped}</span>`;
-  return escaped;
+  return raw
+    .replace(/^\s*-\s/, "- ")
+    .replace(/^\s*\+\s/, "+ ");
+}
+
+function parseSmartBulletLine(line) {
+  const normalized = normalizeSmartBulletLine(line);
+  const match = normalized.match(/^([+-])\s?(.*)$/);
+  if (!match) return { level: null, text: normalized, indentCm: "", marker: "" };
+  const level = match[1] === "-" ? 0 : 1;
+  return {
+    level,
+    text: match[2] || "",
+    indentCm: level === 0 ? "0.5cm" : "1cm",
+    marker: level === 0 ? "-" : "+",
+  };
+}
+
+function formatSmartPreviewLine(line) {
+  const parsed = parseSmartBulletLine(line);
+  if (parsed.level === null) return escapeHtml(parsed.text);
+  return `<span style="display:inline-flex;align-items:flex-start;padding-left:${parsed.indentCm};line-height:inherit;width:calc(100% - ${parsed.indentCm});box-sizing:border-box;vertical-align:top;"><span style="display:inline-block;flex:0 0 0.32cm;width:0.32cm;">${parsed.marker}</span><span style="display:inline-block;flex:1 1 auto;">${escapeHtml(parsed.text)}</span></span>`;
 }
 
 function nl2br(s) {
@@ -351,26 +369,22 @@ async function generateDocx() {
       spacing: { line: LINE_15, lineRule: docx.LineRuleType.AUTO },
     };
 
+    const SMART_BULLET_REFERENCE = "smart-bullets";
     const SMART_INDENT_HALF_CM = 283;
     const SMART_INDENT_ONE_CM = 567;
-
-    function getSmartParagraphIndent(text) {
-      const line = String(text || "");
-      if (line.startsWith("- ")) return SMART_INDENT_HALF_CM;
-      if (line.startsWith("+ ")) return SMART_INDENT_ONE_CM;
-      return 0;
-    }
+    const SMART_BULLET_HANGING = 142;
 
     function buildSmartParagraph(text, opts = {}) {
-      const indentLeft = getSmartParagraphIndent(text);
+      const normalizedText = normalizeSmartBulletLine(text);
+      const parsed = parseSmartBulletLine(normalizedText);
       const paragraphOpts = { ...basePara, ...opts };
-      if (indentLeft) {
-        paragraphOpts.indent = { ...(paragraphOpts.indent || {}), left: indentLeft };
+      if (parsed.level !== null) {
+        paragraphOpts.numbering = { reference: SMART_BULLET_REFERENCE, level: parsed.level };
       }
       return new docx.Paragraph({
         ...paragraphOpts,
         children: [
-          new docx.TextRun({ text: text || "", bold: false, ...runBase, ...(opts.run || {}) }),
+          new docx.TextRun({ text: parsed.level !== null ? parsed.text : normalizedText, bold: false, ...runBase, ...(opts.run || {}) }),
         ],
       });
     }
@@ -453,6 +467,27 @@ async function generateDocx() {
     }
 
     const doc = new docx.Document({
+      numbering: {
+        config: [{
+          reference: SMART_BULLET_REFERENCE,
+          levels: [
+            {
+              level: 0,
+              format: docx.LevelFormat.BULLET,
+              text: "-",
+              alignment: docx.AlignmentType.LEFT,
+              style: { paragraph: { indent: { left: SMART_INDENT_HALF_CM, hanging: SMART_BULLET_HANGING } } },
+            },
+            {
+              level: 1,
+              format: docx.LevelFormat.BULLET,
+              text: "+",
+              alignment: docx.AlignmentType.LEFT,
+              style: { paragraph: { indent: { left: SMART_INDENT_ONE_CM, hanging: SMART_BULLET_HANGING } } },
+            },
+          ],
+        }],
+      },
       styles: {
         default: {
           document: {
