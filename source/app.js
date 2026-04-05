@@ -592,6 +592,132 @@ function renderMessage(m) {
   scrollToBottom();
 }
 
+function renderMessageCompact(m) {
+  const mine = (m.sub && my.sub) ? (m.sub === my.sub) : (m.name === my.name);
+
+  const row = document.createElement("div");
+  row.className = `row ${mine ? "rowMine" : "rowOther"}`;
+  if (m.id) row.dataset.id = m.id;
+
+  const bubble = document.createElement("div");
+  bubble.className = `bubble ${mine ? "mine" : "other"}`;
+
+  const bubbleHeader = document.createElement("div");
+  bubbleHeader.className = "bubbleHeader";
+
+  const who = document.createElement("div");
+  who.className = "who";
+  who.textContent = stripAdSuffix(withBsPrefix(m.name || my.name || "Unknown"));
+  bubbleHeader.appendChild(who);
+  bubble.appendChild(bubbleHeader);
+
+  const content = document.createElement("div");
+  content.className = "bubbleContent";
+
+  const fileUrl = m.file_url || m.file_data || "";
+  if (fileUrl) {
+    const wrap = document.createElement("div");
+    wrap.className = "fileWrap";
+
+    const mime = m.file_mime || "application/octet-stream";
+    const name = m.file_name || "file";
+    const size = m.file_size || 0;
+
+    if (isImageMime(mime)) {
+      const img = document.createElement("img");
+      img.className = "fileImg";
+      img.src = fileUrl;
+      img.alt = name;
+      wrap.appendChild(img);
+    }
+
+    const info = document.createElement("div");
+    info.className = "fileInfo";
+
+    const nameEl = document.createElement("div");
+    nameEl.className = "fileName";
+    nameEl.textContent = name;
+
+    const metaEl = document.createElement("div");
+    metaEl.className = "fileMeta";
+    metaEl.textContent = formatBytes(size);
+
+    info.appendChild(nameEl);
+    info.appendChild(metaEl);
+    wrap.appendChild(info);
+
+    const link = document.createElement("a");
+    link.className = "fileLink";
+    link.href = fileUrl;
+    link.download = name;
+    link.textContent = "Tải xuống";
+    wrap.appendChild(link);
+
+    content.appendChild(wrap);
+  } else {
+    appendRichText(content, m.text || "");
+    appendLinkPreviews(content, m.text || "");
+  }
+
+  bubble.appendChild(content);
+
+  const footer = document.createElement("div");
+  footer.className = "bubbleFooter";
+
+  let heartWrap = null;
+  if (m.id) {
+    heartWrap = document.createElement("div");
+    heartWrap.className = "heartWrap";
+
+    const heartBtn = document.createElement("button");
+    heartBtn.className = "heartBtn";
+    heartBtn.type = "button";
+    heartBtn.setAttribute("aria-pressed", "false");
+    heartBtn.textContent = "❤";
+    heartBtn.disabled = mine;
+    heartBtn.addEventListener("click", () => {
+      if (heartBtn.disabled) return;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      ws.send(JSON.stringify({ type: "heart", id: m.id }));
+    });
+
+    const heartCount = document.createElement("span");
+    heartCount.className = "heartCount";
+    heartCount.textContent = String(Number(m.heart_count || 0));
+
+    heartWrap.appendChild(heartBtn);
+    heartWrap.appendChild(heartCount);
+  }
+
+  if (!mine && heartWrap) footer.appendChild(heartWrap);
+
+  const time = document.createElement("span");
+  time.className = "time";
+  time.textContent = fmtTime(m.at);
+  footer.appendChild(time);
+
+  if (mine && heartWrap) footer.appendChild(heartWrap);
+
+  if (my.isAdmin && m.id) {
+    const del = document.createElement("button");
+    del.className = "delBtn";
+    del.type = "button";
+    del.textContent = "Xóa";
+    del.addEventListener("click", () => {
+      if (!confirm("Xóa tin nhắn này?")) return;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      ws.send(JSON.stringify({ type: "delete", id: m.id }));
+    });
+    footer.appendChild(del);
+  }
+
+  bubble.appendChild(footer);
+
+  row.appendChild(bubble);
+  messagesEl.appendChild(row);
+  scrollToBottom();
+}
+
 function resetChatUI() {
   messagesEl.innerHTML = "";
   inputEl.value = "";
@@ -615,12 +741,12 @@ function connectWS() {
 
     if (data.type === "history") {
       resetChatUI();
-      (data.items || []).forEach(renderMessage);
+      (data.items || []).forEach(renderMessageCompact);
       return;
     }
 
     if (data.type === "message") {
-      renderMessage(data);
+      renderMessageCompact(data);
       return;
     }
 

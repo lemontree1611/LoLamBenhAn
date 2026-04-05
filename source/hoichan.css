@@ -389,22 +389,6 @@ html, body {
   to   { opacity: 1; transform: translateY(0)   scale(1);   }
 }
 
-/* meta row: name + time */
-.meta {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-  padding: 0 4px;
-  font-size: 11.5px;
-  color: var(--text-secondary);
-  letter-spacing: .1px;
-}
-.meta .who {
-  font-weight: 600;
-  color: var(--text);
-}
 .delBtn {
   font-family: var(--font);
   font-size: 11.5px;
@@ -429,25 +413,18 @@ html, body {
   padding: 3px 8px;
   border-radius: 999px;
   background: #ffffff;
-  border: 1px solid rgba(255,59,48,.25);
-  box-shadow: 0 6px 14px rgba(0,0,0,.1);
-  margin-top: -10px;
-  z-index: 2;
-}
-.rowMine .heartWrap {
-  align-self: flex-end;
-}
-.rowOther .heartWrap {
-  align-self: flex-start;
+  border: 1px solid rgba(255,59,48,.22);
+  box-shadow: 0 4px 12px rgba(0,0,0,.08);
 }
 .heartBtn {
   font-family: var(--font);
   font-size: 12px;
   padding: 0;
   border: none;
-  background: #ffffff;
+  background: transparent;
   color: #ff3b30;
   cursor: pointer;
+  line-height: 1;
 }
 .heartBtn:disabled {
   opacity: .55;
@@ -458,20 +435,23 @@ html, body {
   color: var(--text-secondary);
   min-width: 12px;
 }
-.meta .time {
+.bubbleContent {
+  white-space: pre-wrap;
+}
+
+.bubbleFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+.time {
   font-weight: 500;
   color: var(--text-secondary);
-  background: rgba(0,0,0,.05);
-  padding: 2px 7px;
-  border-radius: 999px;
   font-variant-numeric: tabular-nums;
-}
-.rowMine .meta {
-  justify-content: flex-end;
-}
-.rowMine .meta .time {
-  background: rgba(0,122,255,.12);
-  color: var(--accent-dark);
 }
 
 /* ── Bubbles ── */
@@ -507,6 +487,22 @@ html, body {
 .bubble > * {
   position: relative;
   z-index: 1;
+}
+
+.bubbleHeader {
+  margin-bottom: 6px;
+}
+
+.bubbleHeader .who {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .01em;
+  color: inherit;
+  opacity: .8;
+}
+
+.rowMine .bubbleHeader {
+  display: none;
 }
 
 .messageLink {
