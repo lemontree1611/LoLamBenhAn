@@ -23,8 +23,11 @@ let lastSendAt = 0;
 
 const SEND_COOLDOWN_MS = 5000;
 let cooldownTimer = null;
+const INPUT_MAX_HEIGHT = 140;
 
 const ADMIN_EMAIL = "minhtri16112002@gmail.com";
+const URL_REGEX = /(?:https?:\/\/|www\.)[^\s<>"']+/gi;
+const linkPreviewCache = new Map();
 
 function stripAdSuffix(name) {
   return String(name || "").replace(/\s*\(ad\)\s*$/i, "");
@@ -76,6 +79,387 @@ function isImageMime(mime) {
   return /^image\//i.test(mime || "");
 }
 
+function normalizeUrl(rawUrl) {
+  const cleaned = String(rawUrl || "").trim().replace(/[),.;!?]+$/g, "");
+  if (!cleaned) return "";
+
+  const candidate = /^https?:\/\//i.test(cleaned)
+    ? cleaned
+    : cleaned.startsWith("//")
+      ? `https:${cleaned}`
+      : `https://${cleaned}`;
+  try {
+    const url = new URL(candidate);
+    if (!/^https?:$/i.test(url.protocol)) return "";
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+
+function extractUrls(text) {
+  const found = String(text || "").match(URL_REGEX) || [];
+  const unique = new Set();
+  found.forEach((rawUrl) => {
+    const normalized = normalizeUrl(rawUrl);
+    if (normalized) unique.add(normalized);
+  });
+  return [...unique];
+}
+
+function getDisplayUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.host + (parsed.pathname === "/" ? "" : parsed.pathname);
+  } catch {
+    return url;
+  }
+}
+
+function getUrlHostname(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./i, "");
+  } catch {
+    return url;
+  }
+}
+
+function getFaviconUrl(url) {
+  try {
+    const host = new URL(url).hostname;
+    return `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(host)}`;
+  } catch {
+    return "";
+  }
+}
+
+function looksLikeImageUrl(url) {
+  try {
+    const { pathname } = new URL(url);
+    return /\.(avif|gif|jpe?g|png|svg|webp)$/i.test(pathname);
+  } catch {
+    return false;
+  }
+}
+
+function firstUsableUrl(...values) {
+  for (const value of values) {
+    const normalized = normalizeUrl(value);
+    if (normalized) return normalized;
+  }
+  return "";
+}
+
+function cleanPreviewText(value, fallback = "") {
+  const text = String(value || "").trim();
+  return text || fallback;
+}
+
+function appendRichText(container, text) {
+  const rawText = String(text || "");
+  const fragment = document.createDocumentFragment();
+  let lastIndex = 0;
+  let match;
+
+  URL_REGEX.lastIndex = 0;
+  while ((match = URL_REGEX.exec(rawText)) !== null) {
+    const [rawUrl] = match;
+    const start = match.index;
+    const normalized = normalizeUrl(rawUrl);
+
+    if (start > lastIndex) {
+      fragment.appendChild(document.createTextNode(rawText.slice(lastIndex, start)));
+    }
+
+    if (normalized) {
+      const link = document.createElement("a");
+      link.className = "messageLink";
+      link.href = normalized;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = rawUrl;
+      fragment.appendChild(link);
+    } else {
+      fragment.appendChild(document.createTextNode(rawUrl));
+    }
+
+    lastIndex = start + rawUrl.length;
+  }
+
+  if (lastIndex < rawText.length) {
+    fragment.appendChild(document.createTextNode(rawText.slice(lastIndex)));
+  }
+
+  const lines = [];
+  fragment.childNodes.forEach((node) => lines.push(node));
+  container.textContent = "";
+  lines.forEach((node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const parts = String(node.textContent || "").split("\n");
+      parts.forEach((part, index) => {
+        if (part) container.appendChild(document.createTextNode(part));
+        if (index < parts.length - 1) container.appendChild(document.createElement("br"));
+      });
+      return;
+    }
+    container.appendChild(node);
+  });
+}
+
+function getYouTubeEmbedUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./i, "").toLowerCase();
+    let videoId = "";
+
+    if (host === "youtu.be") {
+      videoId = parsed.pathname.slice(1).split("/")[0];
+    } else if (host === "youtube.com" || host === "m.youtube.com") {
+      if (parsed.pathname === "/watch") {
+        videoId = parsed.searchParams.get("v") || "";
+      } else if (parsed.pathname.startsWith("/shorts/") || parsed.pathname.startsWith("/embed/")) {
+        videoId = parsed.pathname.split("/")[2] || "";
+      }
+    }
+
+    if (!videoId) return "";
+    return `https://www.youtube.com/embed/${videoId}`;
+  } catch {
+    return "";
+  }
+}
+
+function extractIframeSrc(html) {
+  if (!html) return "";
+  try {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const iframe = doc.querySelector("iframe[src]");
+    const src = iframe?.getAttribute("src") || "";
+    return normalizeUrl(src);
+  } catch {
+    return "";
+  }
+}
+
+async function getLinkPreviewData(url) {
+  if (linkPreviewCache.has(url)) return linkPreviewCache.get(url);
+
+  const task = (async () => {
+    if (looksLikeImageUrl(url)) {
+      return {
+        type: "card",
+        url,
+        title: getDisplayUrl(url),
+        provider: getUrlHostname(url),
+        thumbnail: url,
+        description: "",
+        iconUrl: getFaviconUrl(url)
+      };
+    }
+
+    const youtubeEmbed = getYouTubeEmbedUrl(url);
+    if (youtubeEmbed) {
+        return {
+          type: "embed",
+          url,
+          title: "YouTube",
+          provider: "YouTube",
+          embedUrl: youtubeEmbed,
+          description: "",
+          iconUrl: getFaviconUrl(url)
+        };
+      }
+
+    try {
+      const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const iframeSrc = extractIframeSrc(data.html);
+      const thumbnail = firstUsableUrl(
+        data.thumbnail_url,
+        data.thumbnailUrl,
+        data.image,
+        data.image_url
+      );
+
+      if (iframeSrc) {
+        return {
+          type: "embed",
+          url,
+          title: cleanPreviewText(data.title, getDisplayUrl(url)),
+          provider: cleanPreviewText(data.provider_name, getUrlHostname(url)),
+          thumbnail,
+          embedUrl: iframeSrc,
+          description: cleanPreviewText(data.author_name || data.description),
+          iconUrl: getFaviconUrl(url)
+        };
+      }
+
+      if (thumbnail || data.title || data.provider_name) {
+        return {
+          type: "card",
+          url,
+          title: cleanPreviewText(data.title, getDisplayUrl(url)),
+          provider: cleanPreviewText(data.provider_name, getUrlHostname(url)),
+          thumbnail,
+          description: cleanPreviewText(data.author_name || data.description),
+          iconUrl: getFaviconUrl(url)
+        };
+      }
+    } catch {}
+
+    try {
+      const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}&screenshot=true&audio=false&video=false`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const payload = await res.json();
+      const data = payload?.data || {};
+      const thumbnail = firstUsableUrl(
+        data.image?.url,
+        data.image?.secureUrl,
+        data.screenshot?.url,
+        data.logo?.url
+      );
+      const iconUrl = firstUsableUrl(
+        data.logo?.icon,
+        data.logo?.url,
+        getFaviconUrl(url)
+      );
+
+      return {
+        type: "card",
+        url,
+        title: cleanPreviewText(data.title, getDisplayUrl(url)),
+        provider: cleanPreviewText(data.publisher || data.author, getUrlHostname(url)),
+        thumbnail,
+        description: cleanPreviewText(data.description),
+        iconUrl
+      };
+    } catch {
+      return {
+        type: "card",
+        url,
+        title: getDisplayUrl(url),
+        provider: getUrlHostname(url),
+        thumbnail: "",
+        description: "",
+        iconUrl: getFaviconUrl(url)
+      };
+    }
+  })();
+
+  linkPreviewCache.set(url, task);
+  return task;
+}
+
+function createPreviewCard(data) {
+  const link = document.createElement("a");
+  link.className = "linkPreviewCard";
+  link.href = data.url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+
+  if (data.thumbnail) {
+    const img = document.createElement("img");
+    img.className = "linkPreviewThumb";
+    img.src = data.thumbnail;
+    img.alt = data.title || "Link preview";
+    img.loading = "lazy";
+    link.appendChild(img);
+  }
+
+  const body = document.createElement("div");
+  body.className = "linkPreviewBody";
+
+  const provider = document.createElement("div");
+  provider.className = "linkPreviewProvider";
+  if (data.iconUrl) {
+    const providerIcon = document.createElement("img");
+    providerIcon.className = "linkPreviewProviderIcon";
+    providerIcon.src = data.iconUrl;
+    providerIcon.alt = "";
+    providerIcon.loading = "lazy";
+    providerIcon.referrerPolicy = "no-referrer";
+    provider.appendChild(providerIcon);
+  }
+
+  const providerText = document.createElement("span");
+  providerText.textContent = data.provider || getUrlHostname(data.url);
+  provider.appendChild(providerText);
+
+  const title = document.createElement("div");
+  title.className = "linkPreviewTitle";
+  title.textContent = data.title || getDisplayUrl(data.url);
+
+  const description = document.createElement("div");
+  description.className = "linkPreviewDescription";
+  description.textContent = data.description || "";
+
+  const href = document.createElement("div");
+  href.className = "linkPreviewHref";
+  href.textContent = getDisplayUrl(data.url);
+
+  body.appendChild(provider);
+  body.appendChild(title);
+  if (data.description) body.appendChild(description);
+  body.appendChild(href);
+  link.appendChild(body);
+
+  return link;
+}
+
+function createPreviewEmbed(data) {
+  const wrap = document.createElement("div");
+  wrap.className = "linkPreviewEmbed";
+
+  const iframe = document.createElement("iframe");
+  iframe.className = "linkPreviewFrame";
+  iframe.src = data.embedUrl;
+  iframe.loading = "lazy";
+  iframe.referrerPolicy = "strict-origin-when-cross-origin";
+  iframe.allow =
+    "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+  iframe.allowFullscreen = true;
+  iframe.title = data.title || "Link preview";
+  wrap.appendChild(iframe);
+
+  wrap.appendChild(createPreviewCard(data));
+  return wrap;
+}
+
+function appendLinkPreviews(container, text) {
+  const urls = extractUrls(text).slice(0, 3);
+  if (!urls.length) return;
+
+  const list = document.createElement("div");
+  list.className = "linkPreviewList";
+  container.appendChild(list);
+
+  urls.forEach((url) => {
+    const slot = document.createElement("div");
+    slot.className = "linkPreviewSlot";
+    list.appendChild(slot);
+
+    getLinkPreviewData(url)
+      .then((data) => {
+        slot.replaceChildren(
+          data.type === "embed" ? createPreviewEmbed(data) : createPreviewCard(data)
+        );
+        scrollToBottom();
+      })
+      .catch(() => {
+        slot.replaceChildren(createPreviewCard({
+          type: "card",
+          url,
+          title: getDisplayUrl(url),
+          provider: getUrlHostname(url),
+          thumbnail: "",
+          description: "",
+          iconUrl: getFaviconUrl(url)
+        }));
+      });
+  });
+}
+
 function showChat() {
   loginScreen.classList.add("hidden");
   chatScreen.classList.remove("hidden");
@@ -87,6 +471,14 @@ function showLogin() {
 
 function scrollToBottom() {
   messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function autoResizeInput() {
+  if (!inputEl) return;
+  inputEl.style.height = "auto";
+  const nextHeight = Math.min(inputEl.scrollHeight, INPUT_MAX_HEIGHT);
+  inputEl.style.height = `${Math.max(nextHeight, 44)}px`;
+  inputEl.style.overflowY = inputEl.scrollHeight > INPUT_MAX_HEIGHT ? "auto" : "hidden";
 }
 
 function renderMessage(m) {
@@ -171,7 +563,8 @@ function renderMessage(m) {
 
     bubble.appendChild(wrap);
   } else {
-    bubble.textContent = m.text || "";
+    appendRichText(bubble, m.text || "");
+    appendLinkPreviews(bubble, m.text || "");
   }
   row.appendChild(bubble);
 
@@ -207,6 +600,7 @@ function renderMessage(m) {
 function resetChatUI() {
   messagesEl.innerHTML = "";
   inputEl.value = "";
+  autoResizeInput();
   if (fileInputEl) fileInputEl.value = "";
 }
 
@@ -272,6 +666,7 @@ function sendMessage() {
 
   ws.send(JSON.stringify({ type: "send", text }));
   inputEl.value = "";
+  autoResizeInput();
   lastSendAt = Date.now();
 }
 
@@ -378,8 +773,12 @@ function logout() {
 
 // ====== Events ======
 $("sendBtn").addEventListener("click", sendMessage);
+inputEl.addEventListener("input", autoResizeInput);
 inputEl.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") sendMessage();
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
 });
 $("logoutBtn").addEventListener("click", logout);
 if (fileBtnEl && fileInputEl) {
@@ -419,4 +818,6 @@ window.onload = () => {
     if (p?.name) setAuthed(token);
     else logout();
   }
+
+  autoResizeInput();
 };
