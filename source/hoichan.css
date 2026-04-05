@@ -618,12 +618,6 @@ html, body {
   overflow: hidden;
 }
 
-.linkPreviewHref {
-  font-size: 12px;
-  color: var(--text-secondary);
-  overflow-wrap: anywhere;
-}
-
 .linkPreviewEmbed {
   display: flex;
   flex-direction: column;

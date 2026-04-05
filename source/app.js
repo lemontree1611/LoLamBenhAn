@@ -394,14 +394,9 @@ function createPreviewCard(data) {
   description.className = "linkPreviewDescription";
   description.textContent = data.description || "";
 
-  const href = document.createElement("div");
-  href.className = "linkPreviewHref";
-  href.textContent = getDisplayUrl(data.url);
-
   body.appendChild(provider);
   body.appendChild(title);
   if (data.description) body.appendChild(description);
-  body.appendChild(href);
   link.appendChild(body);
 
   return link;
