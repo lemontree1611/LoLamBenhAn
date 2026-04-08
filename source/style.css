@@ -909,6 +909,27 @@ input[type="number"] {
   .tb-chat-text{ display:none; } /* keep icon-only on small phones */
 }
 
+@media (max-width: 768px){
+  .topbar{
+    isolation: isolate;
+    background: rgba(28,33,42,0.9);
+    border-color: rgba(255,255,255,0.08);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .topbar.glass::before,
+  .topbar.glass::after{
+    content: none;
+  }
+
+  .topbar .tb-btn{
+    background: rgba(32,38,49,0.96);
+    border-color: rgba(255,255,255,0.08);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.18);
+  }
+}
+
 /* =========================================================
    CHAT PANEL (slides from top bar)
    ========================================================= */
