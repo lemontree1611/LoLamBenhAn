@@ -1265,6 +1265,18 @@ button.cls-suggest-item:active{
   background: rgba(255,255,255,0.92);
 }
 
+@media (max-width: 768px) {
+  .markdown-body .chat-table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 10px 0;
+  }
+
+  .markdown-body .chat-table-scroll table {
+    margin: 0;
+  }
+}
+
 .markdown-body th,
 .markdown-body td {
   border: 1px solid rgba(29,29,31,0.18);

@@ -804,6 +804,19 @@ const chatSend = document.getElementById("chat-send");
 const chatInput = document.getElementById("chat-text");
 const chatMessages = document.getElementById("chat-messages");
 
+function wrapMarkdownTables(container) {
+  if (!container) return;
+  if (!window.matchMedia("(max-width: 768px)").matches) return;
+  const tables = container.querySelectorAll("table");
+  for (const table of tables) {
+    if (table.parentElement?.classList.contains("chat-table-scroll")) continue;
+    const wrapper = document.createElement("div");
+    wrapper.className = "chat-table-scroll";
+    table.parentNode.insertBefore(wrapper, table);
+    wrapper.appendChild(table);
+  }
+}
+
 // ===============================
 //  CHAT API (Render)
 //  Backend proxy gọi Gemini, trả JSON: { answer: "..." }
@@ -1938,6 +1951,7 @@ async function sendMessage() {
         ${html}
       </div>
     `;
+    wrapMarkdownTables(chatMessages.lastElementChild);
 
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
