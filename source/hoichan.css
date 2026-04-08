@@ -85,13 +85,14 @@ html, body {
 }
 
 .card {
-  width: 100%;
+  width: auto;
+  max-width: 100%;
   max-width: 620px;
   background: var(--surface);
   border-radius: 32px;
   box-shadow: var(--shadow), 0 1px 0 var(--border) inset;
   padding: 40px 40px 28px;
-  display: flex;
+  display: inline-flex;
   flex-direction: column;
   align-items: center;
   gap: 20px;
@@ -246,16 +247,33 @@ html, body {
 
 /* Google button wrapper — center the rendered button */
 .googleBtn {
-  display: flex;
+  display: inline-flex;
   justify-content: center;
-  width: 100%;
-  min-height: 44px;
+  width: auto;
+  max-width: 100%;
+  min-height: 0;
+}
+
+.googleBtn > div,
+.googleBtn iframe {
+  display: block;
+  max-width: 100%;
 }
 
 .loginSubtitle {
   margin-top: -2px;
   position: relative;
   z-index: 1;
+}
+
+:root[data-theme="dark"] .googleBtn {
+  background: #1b2029;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+:root[data-theme="dark"] .googleBtn > div {
+  margin: -6px;
 }
 
 .loginHighlight:nth-child(3) strong{
