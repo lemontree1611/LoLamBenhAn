@@ -1488,6 +1488,28 @@ button.cls-suggest-item:active{
   background:rgba(39,48,61,.98);
 }
 
+:root[data-theme="dark"] .share-row .share-label{
+  color:#f5f7fb;
+}
+
+:root[data-theme="dark"] .share-link{
+  background:#171c24;
+  color:#eef2f7;
+  border:1px solid rgba(255,255,255,.08);
+}
+
+:root[data-theme="dark"] .share-link:hover{
+  background:#1d2430;
+}
+
+:root[data-theme="dark"] .copy-btn{
+  color:#4da3ff;
+}
+
+:root[data-theme="dark"] .copy-btn:hover{
+  background:rgba(77,163,255,.14);
+}
+
 @media (max-width: 768px){
   :root[data-theme="dark"] .topbar,
   :root[data-theme="dark"] .topbar.glass{
