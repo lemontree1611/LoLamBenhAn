@@ -1285,6 +1285,8 @@ button.cls-suggest-item:active{
 
 .markdown-body {
   line-height: 1.6;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .markdown-body h1,
@@ -1296,6 +1298,7 @@ button.cls-suggest-item:active{
 
 .markdown-body p {
   margin: 6px 0;
+  white-space: pre-wrap;
 }
 
 .markdown-body strong {
@@ -1310,11 +1313,33 @@ button.cls-suggest-item:active{
   padding-left: 20px;
 }
 
+.markdown-body li {
+  white-space: pre-wrap;
+}
+
 .markdown-body code {
   background: #f4f4f4;
   padding: 2px 6px;
   border-radius: 6px;
   font-family: monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.markdown-body pre {
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #f4f4f4;
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+
+.markdown-body pre code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
 }
 
 .markdown-body table {
