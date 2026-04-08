@@ -867,7 +867,7 @@ async function sendMessage() {
   const loadingEl = document.createElement("div");
   loadingEl.className = "msg loading";
   loadingEl.innerHTML = `
-    <span class="loading-text">Đang soạn tin</span>
+    <span class="loading-text">Đang suy nghĩ</span>
     <span class="typing-dots"><span></span><span></span><span></span></span>
   `;
   chatMessages.appendChild(loadingEl);
