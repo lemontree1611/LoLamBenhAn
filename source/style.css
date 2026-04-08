@@ -1432,6 +1432,11 @@ button.cls-suggest-item:active{
   border-color:rgba(255,255,255,.08);
 }
 
+:root[data-theme="dark"] .chat-input,
+:root[data-theme="dark"] #chat-panel .chat-input{
+  background:#171c24;
+}
+
 :root[data-theme="dark"] .topbar,
 :root[data-theme="dark"] .modal-header,
 :root[data-theme="dark"] .modal-body,
@@ -1473,6 +1478,13 @@ button.cls-suggest-item:active{
 :root[data-theme="dark"] input[type="datetime-local"],
 :root[data-theme="dark"] select,
 :root[data-theme="dark"] textarea{
+  background:#141922;
+  color:#eef2f7;
+  border-color:#2a3342;
+}
+
+:root[data-theme="dark"] .chat-input input,
+:root[data-theme="dark"] #chat-panel .chat-input input{
   background:#141922;
   color:#eef2f7;
   border-color:#2a3342;
