@@ -265,6 +265,13 @@ html, body {
   overflow: visible;
 }
 
+.googleBtn > div {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
 .loginSubtitle {
   margin-top: -2px;
   position: relative;
