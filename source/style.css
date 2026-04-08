@@ -1488,6 +1488,21 @@ button.cls-suggest-item:active{
   background:rgba(39,48,61,.98);
 }
 
+:root[data-theme="dark"] .cls-search-row .cls-label,
+:root[data-theme="dark"] .cls-row .cls-label{
+  color:#f5f7fb;
+}
+
+:root[data-theme="dark"] #cls-search{
+  background:#141922;
+  color:#eef2f7;
+  border-color:#2a3342;
+}
+
+:root[data-theme="dark"] #cls-search::placeholder{
+  color:#8b97ab;
+}
+
 :root[data-theme="dark"] .share-row .share-label{
   color:#f5f7fb;
 }
