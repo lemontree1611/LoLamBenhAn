@@ -443,15 +443,21 @@ button.secondary:hover {
   background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
   z-index: 6000; /* cao hơn loadingOverlay(2000) và chat */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.24s ease, visibility 0.24s ease, backdrop-filter 0.24s ease;
 }
 
 .modal-backdrop.show {
-  display: flex;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .modal-shell {
@@ -460,6 +466,15 @@ button.secondary:hover {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  opacity: 0;
+  transform: translateY(18px) scale(0.985);
+  transition: opacity 0.28s ease, transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform, opacity;
+}
+
+.modal-backdrop.show .modal-shell {
+  opacity: 1;
+  transform: translateY(0) scale(1);
 }
 
 .modal-header {
@@ -526,6 +541,7 @@ button.secondary:hover {
   }
   .modal-shell {
     max-height: 94vh;
+    transform: translateY(24px) scale(0.995);
   }
   #previewFrame {
     height: 82vh;
@@ -730,6 +746,7 @@ input[type="number"] {
     height: 100dvh !important;
     max-height: none !important;
     gap: 0 !important;
+    transform: translateY(32px) scale(1) !important;
   }
 
   .modal-header {
@@ -755,6 +772,12 @@ input[type="number"] {
   }
 
   .modal-close { padding: 10px 12px; border-radius: 12px; }
+}
+
+@media (max-width: 768px) {
+  .modal-backdrop.show .modal-shell {
+    transform: translateY(0) scale(1) !important;
+  }
 }
 
 
