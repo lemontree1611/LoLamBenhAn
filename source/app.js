@@ -925,9 +925,10 @@ function renderGoogleLoginButton() {
 
   mountNode.innerHTML = "";
   window.google.accounts.id.renderButton(mountNode, {
+    type: "standard",
     theme: getGoogleButtonTheme(),
     size: "large",
-    text: "continue_with",
+    text: "signin_with",
     shape: "pill",
     width: buttonWidth
   });
