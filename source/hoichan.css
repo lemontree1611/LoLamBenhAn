@@ -242,7 +242,9 @@ html, body {
   display: flex;
   justify-content: center;
   position: relative;
-  z-index: 1;
+  z-index: 5;
+  isolation: isolate;
+  overflow: visible;
 }
 
 /* Google button wrapper — center the rendered button */
@@ -251,6 +253,16 @@ html, body {
   justify-content: center;
   width: 100%;
   min-height: 44px;
+  position: relative;
+  z-index: 5;
+  overflow: visible;
+}
+
+.googleBtn > div,
+.googleBtn iframe {
+  position: relative;
+  z-index: 5;
+  overflow: visible;
 }
 
 .loginSubtitle {
