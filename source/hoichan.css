@@ -22,6 +22,7 @@
   --bubble-other:  #ffffff;
   --bubble-mine-t: #1d1d1f;
   --bubble-other-t:#1d1d1f;
+  --bubble-mine-border:#c3defc;
   --shadow:        0 2px 12px rgba(0,0,0,.08);
   --radius:        18px;
   --radius-sm:     12px;
@@ -43,6 +44,7 @@
   --bubble-other:  #171c24;
   --bubble-mine-t: #f5f7fb;
   --bubble-other-t:#eef2f7;
+  --bubble-mine-border:#27415f;
   --shadow:        0 8px 26px rgba(0,0,0,.32);
 }
 
@@ -614,7 +616,7 @@ html, body {
 .bubble.mine {
   background: var(--bubble-mine);
   color: var(--bubble-mine-t);
-  border-color: #c3defc;
+  border-color: var(--bubble-mine-border);
   border-bottom-right-radius: 4px;
 }
 
