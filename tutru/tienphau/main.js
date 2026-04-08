@@ -125,13 +125,13 @@ function escapeHtml(str) {
 function normalizeSmartBulletLine(line) {
   const raw = String(line ?? "");
   return raw
-    .replace(/^\s*-\s/, "- ")
-    .replace(/^\s*\+\s/, "+ ");
+    .replace(/^\s*-\s*/, "- ")
+    .replace(/^\s*\+\s*/, "+ ");
 }
 
 function parseSmartBulletLine(line) {
   const normalized = normalizeSmartBulletLine(line);
-  const match = normalized.match(/^([+-])\s?(.*)$/);
+  const match = normalized.match(/^([+-])\s*(.*)$/);
   if (!match) return { level: null, text: normalized, indentCm: "", marker: "" };
   const level = match[1] === "-" ? 0 : 1;
   return {
@@ -145,7 +145,7 @@ function parseSmartBulletLine(line) {
 function formatSmartPreviewLine(line) {
   const parsed = parseSmartBulletLine(line);
   if (parsed.level === null) return escapeHtml(parsed.text);
-  return `<span style="display:inline-flex;align-items:flex-start;padding-left:${parsed.indentCm};line-height:inherit;width:calc(100% - ${parsed.indentCm});box-sizing:border-box;vertical-align:top;"><span style="display:inline-block;flex:0 0 0.32cm;width:0.32cm;">${parsed.marker}</span><span style="display:inline-block;flex:1 1 auto;">${escapeHtml(parsed.text)}</span></span>`;
+  return `<span style="display:inline-flex;align-items:flex-start;padding-left:${parsed.indentCm};line-height:inherit;width:calc(100% - ${parsed.indentCm});box-sizing:border-box;vertical-align:top;"><span style="display:inline-block;flex:0 0 auto;min-width:0.32cm;margin-right:0.12cm;">${parsed.marker}</span><span style="display:inline-block;flex:1 1 auto;">${escapeHtml(parsed.text)}</span></span>`;
 }
 
 function nl2br(s) {
@@ -481,6 +481,7 @@ async function generateDocx() {
               level: 0,
               format: docx.LevelFormat.BULLET,
               text: "-",
+              suffix: docx.LevelSuffix.SPACE,
               alignment: docx.AlignmentType.LEFT,
               style: { paragraph: { indent: { left: SMART_INDENT_HALF_CM, hanging: SMART_BULLET_HANGING } } },
             },
@@ -488,6 +489,7 @@ async function generateDocx() {
               level: 1,
               format: docx.LevelFormat.BULLET,
               text: "+",
+              suffix: docx.LevelSuffix.SPACE,
               alignment: docx.AlignmentType.LEFT,
               style: { paragraph: { indent: { left: SMART_INDENT_ONE_CM, hanging: SMART_BULLET_HANGING } } },
             },
