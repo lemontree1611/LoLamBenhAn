@@ -30,6 +30,22 @@
   --mono:          "SF Mono", "Fira Code", monospace;
 }
 
+:root[data-theme="dark"] {
+  --bg:            #0f1115;
+  --surface:       #151922;
+  --surface2:      #10141b;
+  --border:        #293142;
+  --text:          #f5f7fb;
+  --text-secondary:#98a2b3;
+  --accent:        #4da3ff;
+  --accent-dark:   #2f86f7;
+  --bubble-mine:   #19324f;
+  --bubble-other:  #171c24;
+  --bubble-mine-t: #f5f7fb;
+  --bubble-other-t:#eef2f7;
+  --shadow:        0 8px 26px rgba(0,0,0,.32);
+}
+
 html, body {
   height: 100%;
   font-family: var(--font);

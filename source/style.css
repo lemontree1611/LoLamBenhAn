@@ -1379,3 +1379,154 @@ button.cls-suggest-item:active{
   font-weight: 700;
 }
 
+:root[data-theme="dark"] body{
+  background:#0f1115;
+  color:#f5f7fb;
+}
+
+:root[data-theme="dark"] .bg-fixed{
+  background-color:#0f1115;
+}
+
+:root[data-theme="dark"] body::before{
+  background:
+    radial-gradient(closest-side at 18% 22%, rgba(77,163,255,.12), transparent 60%),
+    radial-gradient(closest-side at 82% 18%, rgba(52,199,89,.08), transparent 58%),
+    radial-gradient(closest-side at 50% 90%, rgba(255,159,10,.07), transparent 60%);
+}
+
+:root[data-theme="dark"] h1,
+:root[data-theme="dark"] h2,
+:root[data-theme="dark"] h3,
+:root[data-theme="dark"] label,
+:root[data-theme="dark"] .section-title,
+:root[data-theme="dark"] .section-subtitle{
+  color:#f5f7fb;
+}
+
+:root[data-theme="dark"] .small,
+:root[data-theme="dark"] .muted,
+:root[data-theme="dark"] .share-hint,
+:root[data-theme="dark"] .share-muted,
+:root[data-theme="dark"] .note,
+:root[data-theme="dark"] .subtitle{
+  color:#98a2b3;
+}
+
+:root[data-theme="dark"] form,
+:root[data-theme="dark"] .glass,
+:root[data-theme="dark"] .modal-shell,
+:root[data-theme="dark"] #chat-panel,
+:root[data-theme="dark"] #chat-panel .chat-header,
+:root[data-theme="dark"] #share-notice{
+  background:rgba(24,28,36,.94);
+  border-color:rgba(255,255,255,.08);
+  box-shadow:0 24px 64px rgba(0,0,0,.36);
+}
+
+:root[data-theme="dark"] .section,
+:root[data-theme="dark"] .chat-input,
+:root[data-theme="dark"] .modal-header,
+:root[data-theme="dark"] .topbar,
+:root[data-theme="dark"] .modal-body{
+  border-color:rgba(255,255,255,.08);
+}
+
+:root[data-theme="dark"] .topbar,
+:root[data-theme="dark"] .modal-header,
+:root[data-theme="dark"] .modal-body,
+:root[data-theme="dark"] #chat-panel,
+:root[data-theme="dark"] #chat-panel .chat-header,
+:root[data-theme="dark"] #chat-panel .chat-messages,
+:root[data-theme="dark"] #chat-panel .chat-input{
+  color:#f5f7fb;
+}
+
+:root[data-theme="dark"] .tb-btn,
+:root[data-theme="dark"] .apple-icon-btn,
+:root[data-theme="dark"] .modal-close,
+:root[data-theme="dark"] .cls-suggest,
+:root[data-theme="dark"] button.secondary{
+  background:rgba(32,38,49,.92);
+  color:#f5f7fb;
+  border-color:rgba(255,255,255,.08);
+}
+
+:root[data-theme="dark"] .tb-btn:hover,
+:root[data-theme="dark"] .apple-icon-btn:hover,
+:root[data-theme="dark"] .modal-close:hover,
+:root[data-theme="dark"] button.secondary:hover{
+  background:rgba(39,48,61,.98);
+}
+
+:root[data-theme="dark"] button.cls-suggest-item{
+  color:#f5f7fb;
+}
+
+:root[data-theme="dark"] button.cls-suggest-item:hover,
+:root[data-theme="dark"] button.cls-suggest-item.is-active{
+  background:#202631;
+}
+
+:root[data-theme="dark"] input[type="text"],
+:root[data-theme="dark"] input[type="number"],
+:root[data-theme="dark"] input[type="datetime-local"],
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea{
+  background:#141922;
+  color:#eef2f7;
+  border-color:#2a3342;
+}
+
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] textarea::placeholder{
+  color:#8b97ab;
+}
+
+:root[data-theme="dark"] input:focus,
+:root[data-theme="dark"] select:focus,
+:root[data-theme="dark"] textarea:focus{
+  border-color:#4da3ff;
+  box-shadow:0 0 0 3px rgba(77,163,255,.18);
+}
+
+:root[data-theme="dark"] select{
+  color:#eef2f7;
+}
+
+:root[data-theme="dark"] .chat-messages,
+:root[data-theme="dark"] #chat-panel .chat-messages{
+  background:#11151c;
+}
+
+:root[data-theme="dark"] .msg.bot,
+:root[data-theme="dark"] #chat-panel .msg.bot{
+  background:#171c24;
+  color:#eef2f7;
+  border-color:rgba(255,255,255,.08);
+}
+
+:root[data-theme="dark"] .msg.user,
+:root[data-theme="dark"] #chat-panel .msg.user{
+  box-shadow:none;
+}
+
+:root[data-theme="dark"] .markdown-body code,
+:root[data-theme="dark"] .markdown-body pre{
+  background:#171c24;
+  color:#eef2f7;
+}
+
+:root[data-theme="dark"] .markdown-body table{
+  background:#141922;
+}
+
+:root[data-theme="dark"] .markdown-body th,
+:root[data-theme="dark"] .markdown-body td{
+  border-color:rgba(255,255,255,.1);
+}
+
+:root[data-theme="dark"] .markdown-body th{
+  background:rgba(77,163,255,.14);
+}
+
