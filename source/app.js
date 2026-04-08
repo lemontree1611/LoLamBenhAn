@@ -920,8 +920,6 @@ function getGoogleButtonTheme() {
 function renderGoogleLoginButton() {
   const mountNode = $("googleBtn");
   if (!mountNode || !window.google?.accounts?.id) return;
-  const availableWidth = mountNode.parentElement?.clientWidth || mountNode.clientWidth || 360;
-  const buttonWidth = Math.max(220, Math.min(360, Math.floor(availableWidth)));
 
   mountNode.innerHTML = "";
   window.google.accounts.id.renderButton(mountNode, {
@@ -929,8 +927,7 @@ function renderGoogleLoginButton() {
     theme: getGoogleButtonTheme(),
     size: "large",
     text: "signin_with",
-    shape: "pill",
-    width: buttonWidth
+    shape: "pill"
   });
 }
 
