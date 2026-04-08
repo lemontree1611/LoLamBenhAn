@@ -910,12 +910,14 @@ input[type="number"] {
 }
 
 @media (max-width: 768px){
-  .topbar{
+  .topbar,
+  .topbar.glass{
     isolation: isolate;
     background: rgba(255,255,255,0.92);
     border-color: rgba(255,255,255,0.58);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+    box-shadow: 0 12px 26px rgba(15,23,42,0.08);
   }
 
   .topbar.glass::before,
@@ -927,6 +929,7 @@ input[type="number"] {
     background: rgba(255,255,255,0.96);
     border-color: rgba(255,255,255,0.72);
     box-shadow: 0 8px 18px rgba(0,0,0,0.08);
+    color: #1d1d1f;
   }
 }
 
@@ -1486,15 +1489,18 @@ button.cls-suggest-item:active{
 }
 
 @media (max-width: 768px){
-  :root[data-theme="dark"] .topbar{
+  :root[data-theme="dark"] .topbar,
+  :root[data-theme="dark"] .topbar.glass{
     background: rgba(28,33,42,0.9);
     border-color: rgba(255,255,255,0.08);
+    box-shadow: 0 12px 26px rgba(0,0,0,0.22);
   }
 
   :root[data-theme="dark"] .topbar .tb-btn{
     background: rgba(32,38,49,0.96);
     border-color: rgba(255,255,255,0.08);
     box-shadow: 0 8px 18px rgba(0,0,0,0.18);
+    color: #f5f7fb;
   }
 }
 
