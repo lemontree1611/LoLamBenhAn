@@ -1253,15 +1253,18 @@ button.cls-suggest-item:active{
   font-family: monospace;
 }
 
-.markdown-body table {
-  display: block;
+.markdown-body .chat-table-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  margin: 10px 0;
+}
+
+.markdown-body table {
   width: max-content;
   min-width: 100%;
   border-collapse: collapse;
   border-spacing: 0;
-  margin: 10px 0;
+  margin: 0;
   background: rgba(255,255,255,0.92);
 }
 
