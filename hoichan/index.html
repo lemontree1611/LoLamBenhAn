@@ -49,7 +49,7 @@
 
     <!-- CHAT SCREEN -->
     <section id="chatScreen" class="screen chatScreen hidden">
-      <div class="chatShell liquidGlass">
+      <div class="chatShell">
         <div id="cooldownToast" class="cooldownToast hidden" aria-live="polite"></div>
         <header class="topbar">
           <div class="topLeft">
@@ -85,13 +85,5 @@
   </div>
 
   <script type="module" src="../source/app.js"></script>
-
-  <!-- Liquid Glass SVG filter defs -->
-  <svg class="glassDefs" width="0" height="0" aria-hidden="true" focusable="false">
-    <filter id="liquidGlass" x="-20%" y="-20%" width="140%" height="140%">
-      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.02" numOctaves="1" seed="3" result="noise" />
-      <feDisplacementMap in="SourceGraphic" in2="noise" scale="14" xChannelSelector="R" yChannelSelector="G" />
-    </filter>
-  </svg>
 </body>
 </html>
