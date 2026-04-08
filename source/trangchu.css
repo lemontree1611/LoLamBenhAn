@@ -700,6 +700,7 @@ footer p{color:var(--muted2);font-size:.92rem}
 
 @media (max-width: 480px){
   .admin-widgets{top: 12px; right: 12px}
+  .theme-widgets{top: 12px; left: 12px}
   .admin-text{display:none}
   .admin-btn{padding: 10px 12px}
 }
