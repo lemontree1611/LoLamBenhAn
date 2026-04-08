@@ -243,33 +243,69 @@ html, body {
   justify-content: center;
   position: relative;
   z-index: 5;
-  isolation: isolate;
-  overflow: visible;
 }
 
 /* Google button wrapper — center the rendered button */
-.googleBtn {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  min-height: 44px;
+.googleSigninShell {
   position: relative;
-  z-index: 5;
-  overflow: visible;
+  width: min(340px, 100%);
+}
+
+.googleVisualBtn {
+  min-height: 52px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  box-shadow: 0 10px 22px rgba(0,0,0,.06);
+}
+
+.googleVisualIcon {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.googleVisualIcon svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+.googleVisualText {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.googleBtn {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  opacity: 0.01;
 }
 
 .googleBtn > div,
 .googleBtn iframe {
-  position: relative;
-  z-index: 5;
-  overflow: visible;
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
 }
 
-.googleBtn > div {
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
-  padding: 0 !important;
+:root[data-theme="dark"] .googleVisualBtn {
+  background: #1b2029;
+  border-color: #31394a;
+  color: #f5f7fb;
+  box-shadow: 0 12px 28px rgba(0,0,0,.22);
 }
 
 .loginSubtitle {
