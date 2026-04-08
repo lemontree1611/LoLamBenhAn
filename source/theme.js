@@ -42,6 +42,28 @@
     return applyTheme(current === "dark" ? "light" : "dark", true);
   }
 
+  function updateResponsiveChatButtons() {
+    document.querySelectorAll(".tb-chat").forEach((button) => {
+      const text = button.querySelector(".tb-chat-text");
+      const icon = button.querySelector("img, svg");
+      if (!text || !icon) return;
+
+      button.classList.remove("is-compact");
+
+      const styles = window.getComputedStyle(button);
+      const paddingLeft = parseFloat(styles.paddingLeft || "0") || 0;
+      const paddingRight = parseFloat(styles.paddingRight || "0") || 0;
+      const gap = parseFloat(styles.columnGap || styles.gap || "0") || 0;
+      const iconWidth = icon.getBoundingClientRect().width || 20;
+      const textWidth = text.scrollWidth || 0;
+      const neededWidth = Math.ceil(paddingLeft + paddingRight + iconWidth + gap + textWidth + 4);
+
+      if (button.clientWidth < neededWidth) {
+        button.classList.add("is-compact");
+      }
+    });
+  }
+
   applyTheme(readStoredTheme(), false);
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -49,6 +71,9 @@
     document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
       button.addEventListener("click", toggleTheme);
     });
+    updateResponsiveChatButtons();
+    window.addEventListener("resize", updateResponsiveChatButtons);
+    window.setTimeout(updateResponsiveChatButtons, 0);
   });
 
   window.addEventListener("storage", (event) => {
@@ -60,5 +85,6 @@
     applyTheme,
     toggleTheme,
     getTheme: () => normalizeTheme(root.getAttribute("data-theme") || "light"),
+    updateResponsiveChatButtons,
   };
 })();
