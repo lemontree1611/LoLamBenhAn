@@ -76,7 +76,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 32px;
   /* subtle gradient backdrop */
   background:
     radial-gradient(ellipse 80% 60% at 30% 20%, rgba(0,122,255,.07) 0%, transparent 70%),
@@ -86,22 +86,55 @@ html, body {
 
 .card {
   width: 100%;
-  max-width: 420px;
+  max-width: 620px;
   background: var(--surface);
-  border-radius: 28px;
+  border-radius: 32px;
   box-shadow: var(--shadow), 0 1px 0 var(--border) inset;
-  padding: 48px 36px 36px;
+  padding: 56px 44px 40px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 28px;
+  gap: 30px;
+}
+
+.loginCard {
+  position: relative;
+  overflow: hidden;
+}
+
+.loginCard::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 160px;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(0,122,255,.12), transparent 42%),
+    radial-gradient(circle at 88% 0%, rgba(0,122,255,.08), transparent 40%);
+  pointer-events: none;
+}
+
+.loginEyebrow {
+  position: relative;
+  z-index: 1;
+  align-self: flex-start;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .02em;
 }
 
 /* brand row */
 .brand {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 18px;
+  width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 .homeBtnLogin {
@@ -137,39 +170,85 @@ html, body {
 }
 
 .brandIcon {
-  width: 58px;
-  height: 58px;
-  border-radius: 14px;
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--accent);
   border: 1px solid var(--border);
   background: var(--surface2);
-  box-shadow: 0 8px 18px rgba(0,0,0,.08);
+  box-shadow: 0 14px 30px rgba(0,0,0,.08);
 }
 .brandIcon svg {
-  width: 24px;
-  height: 24px;
+  width: 30px;
+  height: 30px;
+}
+
+.brandText {
+  flex: 1;
 }
 
 .title {
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -.3px;
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -.04em;
   color: var(--text);
 }
 
 @media (max-width: 768px) {
   .title {
-    font-size: 18px;
+    font-size: 26px;
   }
 }
 
 .subtitle {
-  font-size: 13px;
+  max-width: 440px;
+  font-size: 15px;
   color: var(--text-secondary);
-  margin-top: 2px;
+  margin-top: 6px;
+  line-height: 1.6;
+}
+
+.loginHighlights {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.loginHighlight {
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  box-shadow: 0 10px 26px rgba(0,0,0,.05);
+}
+
+.loginHighlight strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.loginHighlightLabel {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  letter-spacing: .02em;
+}
+
+.loginActions {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
 }
 
 /* Google button wrapper — center the rendered button */
@@ -177,13 +256,16 @@ html, body {
   display: flex;
   justify-content: center;
   width: 100%;
+  min-height: 44px;
 }
 
 .hint {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-secondary);
   text-align: center;
   line-height: 1.5;
+  position: relative;
+  z-index: 1;
 }
 
 /* WS debug label */
@@ -742,8 +824,36 @@ html, body {
    ============================================================ */
 @media (max-width: 480px) {
   .card {
-    padding: 40px 24px 28px;
+    max-width: 100%;
+    padding: 34px 22px 24px;
     border-radius: 24px;
+  }
+  .brand {
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .brandIcon {
+    width: 60px;
+    height: 60px;
+    border-radius: 18px;
+  }
+  .brandIcon svg {
+    width: 26px;
+    height: 26px;
+  }
+  .title {
+    font-size: 22px;
+  }
+  .subtitle {
+    font-size: 14px;
+  }
+  .loginHighlights {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .loginHighlight {
+    padding: 14px 16px;
+    border-radius: 18px;
   }
   .messages {
     padding: 12px 12px;

@@ -912,6 +912,27 @@ if (fileBtnEl && fileInputEl) {
 }
 
 // ====== Google Login init ======
+function getGoogleButtonTheme() {
+  const currentTheme = document.documentElement.getAttribute("data-theme");
+  return currentTheme === "dark" ? "filled_black" : "outline";
+}
+
+function renderGoogleLoginButton() {
+  const mountNode = $("googleBtn");
+  if (!mountNode || !window.google?.accounts?.id) return;
+  const availableWidth = mountNode.parentElement?.clientWidth || mountNode.clientWidth || 360;
+  const buttonWidth = Math.max(220, Math.min(360, Math.floor(availableWidth)));
+
+  mountNode.innerHTML = "";
+  window.google.accounts.id.renderButton(mountNode, {
+    theme: getGoogleButtonTheme(),
+    size: "large",
+    text: "continue_with",
+    shape: "pill",
+    width: buttonWidth
+  });
+}
+
 window.onload = () => {
   if (!window.google?.accounts?.id) {
     alert("Không tải được Google Login. Kiểm tra mạng/CSP.");
@@ -926,11 +947,14 @@ window.onload = () => {
     }
   });
 
-  window.google.accounts.id.renderButton($("googleBtn"), {
-    theme: "outline",
-    size: "large",
-    text: "continue_with",
-    shape: "pill"
+  renderGoogleLoginButton();
+
+  const themeObserver = new MutationObserver(() => {
+    renderGoogleLoginButton();
+  });
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme"]
   });
 
   // Auto resume if token exists
