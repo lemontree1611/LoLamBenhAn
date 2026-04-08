@@ -537,11 +537,12 @@ button.secondary:hover {
 @media (max-width: 768px) {
   body {
     padding: 15px;
+    padding-top: calc(var(--safe-t) + var(--topbar-gap, 14px) + var(--topbar-h, 56px) + 18px);
   }
 
   h1 {
     font-size: 26px;
-    margin: 100px 0 8px;
+    margin: 16px 0 8px;
   }
 
   h2 {
@@ -592,6 +593,7 @@ button.secondary:hover {
 @media (max-width: 480px) {
   h1 {
     font-size: 22px;
+    margin-top: 12px;
   }
 
   form {
@@ -990,6 +992,32 @@ input[type="number"] {
   font-size: 14px;
   line-height: 1.35;
   display: none;
+}
+
+@media (min-width: 769px){
+  form{
+    backdrop-filter: none;
+  }
+
+  .glass{
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  #chat-panel{
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  #chat-panel .chat-header{
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  #share-notice{
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
 .share-row{

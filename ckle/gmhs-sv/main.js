@@ -652,6 +652,7 @@ document.getElementById("btn-reset")?.addEventListener("click", resetForm);
 
 // Liquid glass: subtle parallax follow scroll (updates CSS vars)
 (function bindGlassScroll(){
+  if (!window.matchMedia("(max-width: 768px)").matches) return;
   const root = document.documentElement;
   let raf = 0;
   function onScroll(){

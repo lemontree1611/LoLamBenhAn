@@ -779,6 +779,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 (function bindGlassScroll(){
+  if (!window.matchMedia("(max-width: 768px)").matches) return;
   const root = document.documentElement;
   let raf = 0;
   function onScroll(){
