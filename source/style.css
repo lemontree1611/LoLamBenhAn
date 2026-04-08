@@ -881,7 +881,7 @@ input[type="number"] {
   position: fixed;
   top: calc(var(--topbar-gap) + var(--safe-t) + var(--topbar-h) + 10px);
   right: calc(12px + max(0px, (100vw - 1020px)/2));
-  width: 380px;
+  width: min(680px, calc(100vw - 24px - max(0px, (100vw - 1020px)/2)));
   height: min(560px, calc(100dvh - (var(--topbar-gap) + var(--safe-t) + var(--topbar-h) + 10px) - 16px - var(--safe-b)));
   border-radius: 18px;
   z-index: 3999;
@@ -926,6 +926,7 @@ input[type="number"] {
   background: rgba(255,255,255,0.7);
   border: 1px solid rgba(255,255,255,0.55);
   box-shadow: 0 8px 16px rgba(0,0,0,0.06);
+  max-width: 100%;
 }
 
 #chat-panel .msg.user{
@@ -1220,6 +1221,8 @@ button.cls-suggest-item:active{
 
 .markdown-body {
   line-height: 1.6;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .markdown-body h1,
@@ -1250,5 +1253,27 @@ button.cls-suggest-item:active{
   padding: 2px 6px;
   border-radius: 6px;
   font-family: monospace;
+}
+
+.markdown-body table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  margin: 10px 0;
+  background: rgba(255,255,255,0.92);
+}
+
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid rgba(29,29,31,0.18);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown-body th {
+  background: rgba(0,113,227,0.08);
+  font-weight: 700;
 }
 
