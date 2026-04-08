@@ -90,11 +90,11 @@ html, body {
   background: var(--surface);
   border-radius: 32px;
   box-shadow: var(--shadow), 0 1px 0 var(--border) inset;
-  padding: 56px 44px 40px;
+  padding: 40px 40px 28px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 30px;
+  gap: 20px;
 }
 
 .loginCard {
@@ -102,36 +102,18 @@ html, body {
   overflow: hidden;
 }
 
-.loginCard::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 160px;
-  background:
-    radial-gradient(circle at 12% 18%, rgba(0,122,255,.12), transparent 42%),
-    radial-gradient(circle at 88% 0%, rgba(0,122,255,.08), transparent 40%);
-  pointer-events: none;
+.loginEyebrow,
+.brandText > .subtitle,
+.hint,
+.loginHighlightLabel {
+  display: none;
 }
 
-.loginEyebrow {
-  position: relative;
-  z-index: 1;
-  align-self: flex-start;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface2);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: .02em;
-}
-
-/* brand row */
 .brand {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
   width: 100%;
   position: relative;
   z-index: 1;
@@ -176,18 +158,26 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent);
-  border: 1px solid var(--border);
-  background: var(--surface2);
-  box-shadow: 0 14px 30px rgba(0,0,0,.08);
+  color: #ff3b30;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 .brandIcon svg {
-  width: 30px;
-  height: 30px;
+  width: 120px;
+  height: 120px;
 }
 
 .brandText {
-  flex: 1;
+  text-align: center;
+}
+
+.welcomeText {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
 }
 
 .title {
@@ -195,6 +185,7 @@ html, body {
   font-weight: 700;
   letter-spacing: -.04em;
   color: var(--text);
+  max-width: 460px;
 }
 
 @media (max-width: 768px) {
@@ -204,43 +195,45 @@ html, body {
 }
 
 .subtitle {
-  max-width: 440px;
+  max-width: 460px;
   font-size: 15px;
   color: var(--text-secondary);
-  margin-top: 6px;
+  margin-top: 2px;
   line-height: 1.6;
+  text-align: center;
 }
 
 .loginHighlights {
   width: 100%;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
   position: relative;
   z-index: 1;
 }
 
 .loginHighlight {
-  padding: 16px 18px;
+  padding: 13px 16px;
   border-radius: 20px;
   border: 1px solid var(--border);
   background: var(--surface2);
   box-shadow: 0 10px 26px rgba(0,0,0,.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .loginHighlight strong {
-  display: block;
-  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin: 0 auto;
   font-size: 16px;
   font-weight: 650;
   color: var(--text);
-}
-
-.loginHighlightLabel {
-  display: block;
-  font-size: 12px;
-  color: var(--text-secondary);
-  letter-spacing: .02em;
+  text-align: center;
 }
 
 .loginActions {
@@ -259,13 +252,19 @@ html, body {
   min-height: 44px;
 }
 
-.hint {
-  font-size: 13px;
-  color: var(--text-secondary);
-  text-align: center;
-  line-height: 1.5;
+.loginSubtitle {
+  margin-top: -2px;
   position: relative;
   z-index: 1;
+}
+
+.loginHighlight:nth-child(3) strong{
+  font-size: 0;
+}
+
+.loginHighlight:nth-child(3) strong::after{
+  content: "Thông báo";
+  font-size: 16px;
 }
 
 /* WS debug label */
@@ -825,12 +824,11 @@ html, body {
 @media (max-width: 480px) {
   .card {
     max-width: 100%;
-    padding: 34px 22px 24px;
+    padding: 28px 20px 20px;
     border-radius: 24px;
   }
   .brand {
-    gap: 14px;
-    align-items: flex-start;
+    gap: 12px;
   }
   .brandIcon {
     width: 60px;
@@ -838,11 +836,14 @@ html, body {
     border-radius: 18px;
   }
   .brandIcon svg {
-    width: 26px;
-    height: 26px;
+    width: 96px;
+    height: 96px;
   }
   .title {
     font-size: 22px;
+  }
+  .welcomeText {
+    font-size: 16px;
   }
   .subtitle {
     font-size: 14px;
@@ -852,7 +853,7 @@ html, body {
     gap: 10px;
   }
   .loginHighlight {
-    padding: 14px 16px;
+    padding: 12px 14px;
     border-radius: 18px;
   }
   .messages {
