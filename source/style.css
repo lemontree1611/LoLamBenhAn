@@ -1221,8 +1221,6 @@ button.cls-suggest-item:active{
 
 .markdown-body {
   line-height: 1.6;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 .markdown-body h1,
@@ -1256,12 +1254,35 @@ button.cls-suggest-item:active{
 }
 
 .markdown-body table {
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,113,227,0.32) rgba(15,23,42,0.08);
   width: max-content;
   min-width: 100%;
   border-collapse: collapse;
   border-spacing: 0;
   margin: 10px 0;
   background: rgba(255,255,255,0.92);
+}
+
+.markdown-body table::-webkit-scrollbar {
+  height: 7px;
+}
+
+.markdown-body table::-webkit-scrollbar-track {
+  background: rgba(15,23,42,0.06);
+  border-radius: 999px;
+}
+
+.markdown-body table::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, rgba(0,113,227,0.28), rgba(0,168,232,0.5));
+  border-radius: 999px;
+}
+
+.markdown-body table::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, rgba(0,113,227,0.42), rgba(0,168,232,0.62));
 }
 
 .markdown-body th,
