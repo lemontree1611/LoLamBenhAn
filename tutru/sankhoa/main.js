@@ -547,9 +547,18 @@ function openPreview() {
   const frame = document.getElementById('previewFrame');
   if (!modal || !frame) return;
 
+  frame.setAttribute('tabindex', '-1');
+  frame.onload = () => {
+    try { frame.focus({ preventScroll: true }); } catch (_) {}
+    try { frame.contentWindow?.focus(); } catch (_) {}
+  };
   frame.srcdoc = buildHTMLDoc();
   modal.classList.add('show');
   modal.setAttribute('aria-hidden', 'false');
+  setTimeout(() => {
+    try { frame.focus({ preventScroll: true }); } catch (_) {}
+    try { frame.contentWindow?.focus(); } catch (_) {}
+  }, 120);
 }
 
 function closePreview() {
