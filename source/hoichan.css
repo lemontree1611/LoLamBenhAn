@@ -270,10 +270,11 @@ html, body {
   background: #1b2029;
   border-radius: 999px;
   overflow: hidden;
+  padding-right: 4px;
 }
 
 :root[data-theme="dark"] .googleBtn > div {
-  margin: -4px;
+  margin: -4px 0 -4px -4px;
 }
 
 .loginHighlight:nth-child(3) strong{
