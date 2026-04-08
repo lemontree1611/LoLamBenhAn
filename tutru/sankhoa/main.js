@@ -1911,6 +1911,7 @@ _initClsSearch();
     // render notice ngay (không chờ ws open) để user thấy có phản hồi
     renderSharedNotice(link);
     bindNoticeCopyButton();
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   if (btnShare) btnShare.addEventListener("click", onShareClick);

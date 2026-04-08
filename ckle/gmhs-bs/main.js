@@ -1468,6 +1468,7 @@ if (chatInput) {
 
     renderSharedNotice(link);
     bindNoticeCopyButton();
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   if (btnShare) btnShare.addEventListener("click", onShareClick);
