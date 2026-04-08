@@ -75,6 +75,7 @@ label {
 /* Input & Select */
 input[type="text"],
 input[type="number"],
+input[type="date"],
 input[type="datetime-local"],
 select,
 textarea {
@@ -1552,6 +1553,7 @@ button.cls-suggest-item:active{
 
 :root[data-theme="dark"] input[type="text"],
 :root[data-theme="dark"] input[type="number"],
+:root[data-theme="dark"] input[type="date"],
 :root[data-theme="dark"] input[type="datetime-local"],
 :root[data-theme="dark"] select,
 :root[data-theme="dark"] textarea{
