@@ -340,12 +340,12 @@ button.secondary:hover {
 .chat-jump-bottom{
   position:absolute;
   left:50%;
-  bottom:calc(100% + 10px);
+  bottom:calc(100% + 5px);
   transform:translate(-50%, 14px) scale(.94);
   width:42px;
   height:42px;
   border:1px solid rgba(29,29,31,.12);
-  border-radius:999px;
+  border-radius:50%;
   background:rgba(255,255,255,.92);
   color:#1d1d1f;
   box-shadow:0 10px 28px rgba(15,23,42,.14);
