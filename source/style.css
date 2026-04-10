@@ -340,10 +340,14 @@ button.secondary:hover {
 .chat-jump-bottom{
   position:absolute;
   left:50%;
-  bottom:calc(100% + 5px);
+  bottom:calc(100% + 20px);
   transform:translate(-50%, 14px) scale(.94);
   width:42px;
   height:42px;
+  min-width:42px !important;
+  max-width:42px !important;
+  padding:0 !important;
+  flex:0 0 42px !important;
   border:1px solid rgba(29,29,31,.12);
   border-radius:50%;
   background:rgba(255,255,255,.92);
@@ -359,6 +363,7 @@ button.secondary:hover {
   transition:opacity 220ms ease,transform 220ms ease,visibility 220ms ease,box-shadow 220ms ease,background 220ms ease;
   z-index:3;
   -webkit-tap-highlight-color:transparent;
+  aspect-ratio:1 / 1;
 }
 
 .chat-jump-bottom svg{
