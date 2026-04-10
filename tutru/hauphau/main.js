@@ -1098,6 +1098,7 @@ function _initClsSearch() {
 function normalizeMathForChat(text = "") {
   return String(text)
     .replace(/\r\n/g, "\n")
+    .replace(/(^|\n)\s*\[\s*\n([\s\S]*?)\n\s*\](?=\n|$)/g, (_, prefix, expr) => `${prefix}\\[\n${expr}\n\\]`)
     .replace(/^\s*\[\s*$/gm, "\\[")
     .replace(/^\s*\]\s*$/gm, "\\]");
 }
