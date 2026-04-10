@@ -1825,13 +1825,28 @@ function renderMathInChatMessage(container) {
   }
 }
 
+function summarizePreviousMessage(content, maxLen = 700) {
+  const normalized = String(content || "")
+    .replace(/\r\n/g, "\n")
+    .replace(/```[\s\S]*?```/g, "[code]")
+    .replace(/\$\$[\s\S]*?\$\$/g, "[math]")
+    .replace(/\\\[[\s\S]*?\\\]/g, "[math]")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
+    .replace(/[*_#>-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized || normalized.length <= maxLen) return normalized;
+  return `${normalized.slice(0, maxLen).trim()}...`;
+}
+
 function buildMinimalChatMessages(history, currentUserContent) {
   const source = Array.isArray(history) ? history : [];
   const messages = [];
   const systemMessage = [...source].reverse().find((m) => m && m.role === "system");
   const previousMessage = [...source].reverse().find((m) => m && m.role !== "system");
   if (systemMessage) messages.push({ role: "system", content: systemMessage.content });
-  if (previousMessage) messages.push({ role: previousMessage.role, content: previousMessage.content });
+  if (previousMessage) messages.push({ role: previousMessage.role, content: summarizePreviousMessage(previousMessage.content) });
   messages.push({ role: "user", content: currentUserContent });
   return messages;
 }
