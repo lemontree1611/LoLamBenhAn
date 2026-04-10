@@ -1964,7 +1964,6 @@ async function sendMessage() {
   // UI: user message
   chatMessages.innerHTML += `<div class="msg user">${escapeHtml(text)}</div>`;
   chatInput.value = "";
-  scrollChatToBottom();
 
   // disable khi đang gửi
   chatInput.disabled = true;
@@ -1978,7 +1977,7 @@ async function sendMessage() {
     <span class="typing-dots"><span></span><span></span><span></span></span>
   `;
   chatMessages.appendChild(loadingEl);
-  scrollChatToBottom();
+  updateChatJumpButton();
 
   // đổi text sau 10s
   const timeoutId = setTimeout(() => {
@@ -2038,7 +2037,7 @@ async function sendMessage() {
     wrapMarkdownTables(chatMessages.lastElementChild);
     renderMathInChatMessage(chatMessages.lastElementChild);
 
-    scrollChatToBottom();
+    updateChatJumpButton();
 
   } catch (err) {
     clearTimeout(timeoutId);

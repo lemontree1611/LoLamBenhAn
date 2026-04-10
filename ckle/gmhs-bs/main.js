@@ -955,7 +955,6 @@ async function sendMessage() {
 
   chatMessages.innerHTML += `<div class="msg user">${escapeHtml(text)}</div>`;
   chatInput.value = "";
-  scrollChatToBottom();
 
   chatInput.disabled = true;
   chatSend.disabled = true;
@@ -967,7 +966,7 @@ async function sendMessage() {
     <span class="typing-dots"><span></span><span></span><span></span></span>
   `;
   chatMessages.appendChild(loadingEl);
-  scrollChatToBottom();
+  updateChatJumpButton();
 
   const timeoutId = setTimeout(() => {
     const textEl = loadingEl.querySelector(".loading-text");
@@ -1018,7 +1017,7 @@ async function sendMessage() {
     `;
     wrapMarkdownTables(chatMessages.lastElementChild);
     renderMathInChatMessage(chatMessages.lastElementChild);
-    scrollChatToBottom();
+    updateChatJumpButton();
 
   } catch (err) {
     clearTimeout(timeoutId);
