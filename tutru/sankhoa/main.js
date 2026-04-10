@@ -888,6 +888,42 @@ const chatClose = document.getElementById("chat-close");
 const chatSend = document.getElementById("chat-send");
 const chatInput = document.getElementById("chat-text");
 const chatMessages = document.getElementById("chat-messages");
+const chatJumpBtn = createChatJumpButton();
+
+function createChatJumpButton() {
+  if (!chatBox) return null;
+  const chatInputWrap = chatBox.querySelector(".chat-input");
+  if (!chatInputWrap) return null;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "chat-jump-bottom";
+  button.setAttribute("aria-label", "Cuộn xuống cuối đoạn chat");
+  button.innerHTML = `
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 5v10m0 0 4-4m-4 4-4-4M6 18h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  `;
+  button.addEventListener("click", () => scrollChatToBottom(true));
+  chatInputWrap.appendChild(button);
+  return button;
+}
+
+function isChatNearBottom() {
+  if (!chatMessages) return true;
+  return chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 24;
+}
+
+function updateChatJumpButton() {
+  if (!chatJumpBtn || !chatMessages) return;
+  const hasOverflow = chatMessages.scrollHeight - chatMessages.clientHeight > 40;
+  chatJumpBtn.classList.toggle("is-visible", hasOverflow && !isChatNearBottom());
+}
+
+function scrollChatToBottom(smooth = false) {
+  if (!chatMessages) return;
+  chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+  requestAnimationFrame(updateChatJumpButton);
+}
 
 function wrapMarkdownTables(container) {
   if (!container) return;
@@ -916,6 +952,7 @@ if (chatToggleBtn && chatBox) {
     const willShow = !chatBox.classList.contains("show");
     chatBox.classList.toggle("show", willShow);
     chatToggleBtn.setAttribute("aria-expanded", String(willShow));
+    requestAnimationFrame(updateChatJumpButton);
   };
 }
 if (chatClose && chatBox) {
@@ -924,6 +961,11 @@ if (chatClose && chatBox) {
     chatToggleBtn?.setAttribute("aria-expanded", "false");
   };
 }
+
+if (chatMessages) {
+  chatMessages.addEventListener("scroll", updateChatJumpButton, { passive: true });
+}
+window.addEventListener("resize", updateChatJumpButton, { passive: true });
 
 // ===============================
 //  CHAT MEMORY MODES (1/2/3)
@@ -1237,6 +1279,17 @@ function renderMathInChatMessage(container) {
   }
 }
 
+function buildMinimalChatMessages(history, currentUserContent) {
+  const source = Array.isArray(history) ? history : [];
+  const messages = [];
+  const systemMessage = [...source].reverse().find((m) => m && m.role === "system");
+  const previousMessage = [...source].reverse().find((m) => m && m.role !== "system");
+  if (systemMessage) messages.push({ role: "system", content: systemMessage.content });
+  if (previousMessage) messages.push({ role: previousMessage.role, content: previousMessage.content });
+  messages.push({ role: "user", content: currentUserContent });
+  return messages;
+}
+
 async function sendMessage() {
   if (!chatInput || !chatMessages || !chatSend) return;
 
@@ -1246,7 +1299,7 @@ async function sendMessage() {
   // UI: user message
   chatMessages.innerHTML += `<div class="msg user">${escapeHtml(text)}</div>`;
   chatInput.value = "";
-  chatMessages.scrollTop = chatMessages.scrollHeight;
+  scrollChatToBottom();
 
   // disable khi đang gửi
   chatInput.disabled = true;
@@ -1260,7 +1313,7 @@ async function sendMessage() {
     <span class="typing-dots"><span></span><span></span><span></span></span>
   `;
   chatMessages.appendChild(loadingEl);
-  chatMessages.scrollTop = chatMessages.scrollHeight;
+  scrollChatToBottom();
 
   // đổi text sau 10s
   const timeoutId = setTimeout(() => {
@@ -1272,6 +1325,7 @@ async function sendMessage() {
     // ✅ Cách 3: bơm context từ form (tóm tắt + chẩn đoán sơ bộ)
     const formContext = buildFormContextForBot();
     const userContent = formContext ? (formContext + "\n\nCâu hỏi: " + text) : text;
+    const requestMessages = buildMinimalChatMessages(chatHistory, userContent);
 
     // ✅ Cách 1/2/3: lưu lịch sử theo mode
     chatHistory.push({ role: "user", content: userContent });
@@ -1280,7 +1334,7 @@ async function sendMessage() {
     const response = await fetch(CHAT_API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: chatHistory })
+      body: JSON.stringify({ messages: requestMessages })
     });
 
     // Đọc text trước để tránh lỗi: Unexpected token '<' (server trả HTML)
@@ -1319,7 +1373,7 @@ async function sendMessage() {
     wrapMarkdownTables(chatMessages.lastElementChild);
     renderMathInChatMessage(chatMessages.lastElementChild);
 
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    scrollChatToBottom();
 
   } catch (err) {
     clearTimeout(timeoutId);

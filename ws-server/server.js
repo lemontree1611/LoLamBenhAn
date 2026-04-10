@@ -76,7 +76,7 @@ app.use(
   })
 );
 
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "4mb" }));
 
 // ====== IP BLOCKLIST ======
 function getClientIp(req) {
@@ -107,6 +107,12 @@ app.use((req, res, next) => {
 });
 
 app.use((err, req, res, next) => {
+  if (err && (err.type === "entity.too.large" || err.status === 413)) {
+    return res.status(413).json({
+      error: "Chat payload too large",
+      detail: "Nội dung gửi lên quá dài. Hãy rút gọn bớt lịch sử hoặc dữ liệu form trước khi hỏi AI."
+    });
+  }
   if (err && String(err.message || "").includes("Not allowed by CORS")) {
     return res
       .status(403)
@@ -769,11 +775,6 @@ app.post("/chat", async (req, res) => {
         }
       }
 
-      const status =
-        (lastGroq && lastGroq.status) ||
-        geminiFailure?.status ||
-        geminiResp?.status ||
-        503;
       const payload = {
         error: "All AI providers are unavailable",
         gemini:
@@ -806,7 +807,7 @@ app.post("/chat", async (req, res) => {
         }
       };
 
-      return { __error: true, __status: status, __payload: payload };
+      return { __error: true, __status: 503, __payload: payload };
     });
 
     if (result && result.__error) {
