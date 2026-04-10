@@ -1489,6 +1489,18 @@ button.cls-suggest-item:active{
   border-radius: 0;
 }
 
+.markdown-body .katex {
+  font-size: 1.03em;
+  max-width: 100%;
+}
+
+.markdown-body .katex-display {
+  margin: 10px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
+}
+
 .markdown-body table {
   display: block;
   overflow-x: auto;

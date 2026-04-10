@@ -810,6 +810,34 @@ DỮ LIỆU TỪ FORM (tham khảo khi trả lời):
 `.trim();
 }
 
+function normalizeMathForChat(text = "") {
+  return String(text)
+    .replace(/\r\n/g, "\n")
+    .replace(/^\s*\[\s*$/gm, "\\[")
+    .replace(/^\s*\]\s*$/gm, "\\]");
+}
+
+function renderAssistantMarkdown(text = "") {
+  return marked.parse(normalizeMathForChat(text));
+}
+
+function renderMathInChatMessage(container) {
+  if (!container || typeof renderMathInElement !== "function") return;
+  try {
+    renderMathInElement(container, {
+      throwOnError: false,
+      strict: "ignore",
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "\\[", right: "\\]", display: true },
+        { left: "\\(", right: "\\)", display: false }
+      ]
+    });
+  } catch (err) {
+    console.warn("Math render failed:", err);
+  }
+}
+
 async function sendMessage() {
   if (!chatInput || !chatMessages || !chatSend) return;
 
@@ -882,7 +910,7 @@ async function sendMessage() {
     saveChatHistory();
 
     // UI: bot message (hiển thị reply “sạch” — không cần hiện context)
-    const html = marked.parse(reply);
+    const html = renderAssistantMarkdown(reply);
 
     chatMessages.innerHTML += `
       <div class="msg bot markdown-body">
@@ -890,6 +918,7 @@ async function sendMessage() {
       </div>
     `;
     wrapMarkdownTables(chatMessages.lastElementChild);
+    renderMathInChatMessage(chatMessages.lastElementChild);
 
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
