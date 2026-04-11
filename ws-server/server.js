@@ -568,38 +568,6 @@ function getGeminiApiKeys() {
   return parseApiKeys(process.env.GEMINI_API_KEYS, "");
 }
 
-function getRapidApiConfig() {
-  const apiKey = String(
-    process.env.RAPIDAPI_AI_KEY ||
-      process.env.RAPIDAPI_GEMINI_KEY ||
-      ""
-  ).trim();
-  const url = String(
-    process.env.RAPIDAPI_AI_URL ||
-      process.env.RAPIDAPI_GEMINI_URL ||
-      ""
-  ).trim();
-  const model = String(
-    process.env.RAPIDAPI_AI_MODEL ||
-      process.env.RAPIDAPI_GEMINI_MODEL ||
-      process.env.GEMINI_MODEL ||
-      "gemini-2.5-flash"
-  ).trim();
-  let host = String(
-    process.env.RAPIDAPI_AI_HOST ||
-      process.env.RAPIDAPI_GEMINI_HOST ||
-      ""
-  ).trim();
-
-  if (!host && url) {
-    try {
-      host = new URL(url).host;
-    } catch {}
-  }
-
-  return { apiKey, url, host, model };
-}
-
 function getGroqApiKeys() {
   return parseApiKeys(process.env.GROQ_API_KEYS, process.env.GROQ_API_KEY);
 }
@@ -623,45 +591,6 @@ function extractAiAnswer(raw) {
   if (typeof openAiText === "string") return openAiText;
 
   return "";
-}
-
-async function callRapidApiGemini({ apiKey, url, host, model, messages }) {
-  const key = `rapidapi:${host || "unknown"}:${model}:${apiKey}`;
-
-  if (inCooldown(key)) {
-    return { ok: false, status: 429, raw: "RapidAPI in cooldown" };
-  }
-
-  if (!apiKey || !url) {
-    return { ok: false, status: 500, raw: "Missing RAPIDAPI_AI_KEY or RAPIDAPI_AI_URL" };
-  }
-
-  const contents = messages.map((m) => ({
-    role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: String(m.content ?? "") }]
-  }));
-
-  const endpoint = url.includes("{model}")
-    ? url.replace("{model}", encodeURIComponent(model))
-    : url;
-
-  const r = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-rapidapi-key": apiKey,
-      ...(host ? { "x-rapidapi-host": host } : {})
-    },
-    body: JSON.stringify({ contents })
-  });
-
-  const raw = await r.text();
-
-  if (!r.ok && isRateLimitOrQuota(r.status, raw)) {
-    setCooldown(key);
-  }
-
-  return { ok: r.ok, status: r.status, raw };
 }
 
 async function callGemini({ apiKey, model, messages }) {
@@ -772,58 +701,6 @@ app.post("/chat", async (req, res) => {
 
       const compact = condenseMessages(messages);
 
-      const rapidConfig = getRapidApiConfig();
-      let rapidResp = null;
-      let rapidFailure = null;
-
-      if (rapidConfig.apiKey && rapidConfig.url) {
-        try {
-          rapidResp = await callRapidApiGemini({
-            ...rapidConfig,
-            messages: compact
-          });
-        } catch (err) {
-          rapidResp = {
-            ok: false,
-            status: err?.status || 503,
-            raw: String(err?.message || err || "RapidAPI request failed")
-          };
-        }
-
-        if (rapidResp.ok) {
-          const answer = extractAiAnswer(rapidResp.raw);
-          if (answer) {
-            return {
-              answer,
-              provider_used: "rapidapi",
-              model_used: rapidConfig.model,
-              key_used: keyTag("rapidapi", 0, rapidConfig.apiKey)
-            };
-          }
-
-          rapidFailure = {
-            status: 502,
-            key_used: keyTag("rapidapi", 0, rapidConfig.apiKey),
-            detail: {
-              error: "RapidAPI returned success but no answer text was found",
-              raw: safeJson(rapidResp.raw) ? safeJson(rapidResp.raw) : rapidResp.raw
-            }
-          };
-        } else {
-          rapidFailure = {
-            status: rapidResp.status || 500,
-            key_used: keyTag("rapidapi", 0, rapidConfig.apiKey),
-            detail: safeJson(rapidResp.raw) ? safeJson(rapidResp.raw) : rapidResp.raw
-          };
-        }
-      } else {
-        rapidFailure = {
-          status: 500,
-          key_used: null,
-          detail: "Missing RAPIDAPI_AI_KEY or RAPIDAPI_AI_URL"
-        };
-      }
-
       const geminiKeys = getGeminiApiKeys();
       const geminiModel = getGeminiModel();
       let geminiResp = null;
@@ -912,15 +789,6 @@ app.post("/chat", async (req, res) => {
 
       const payload = {
         error: "All AI providers are unavailable",
-        rapidapi: rapidResp || rapidFailure
-          ? {
-              status: rapidFailure?.status || rapidResp?.status || 500,
-              key_used: rapidFailure?.key_used || keyTag("rapidapi", 0, rapidConfig.apiKey),
-              detail:
-                rapidFailure?.detail ||
-                (safeJson(rapidResp?.raw) ? safeJson(rapidResp?.raw) : rapidResp?.raw)
-            }
-          : null,
         gemini:
           geminiResp || geminiFailure
             ? {
