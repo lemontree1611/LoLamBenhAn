@@ -173,24 +173,48 @@ document.addEventListener('DOMContentLoaded', () => {
 //  Bệnh nhân (tuổi) tuổi, PARA (PARA), kinh cuối (kinh cuối), vào viện vì lý do (lý do).
 //  Qua hỏi bệnh, khám bệnh ghi nhận:
 // ===============================
+let lastAutoTomtat = "";
+
+function looksLikeAutoTomtat(text) {
+  return /^(Bệnh nhân|Bệnh nhi|Sản phụ)\b[\s\S]*Qua hỏi bệnh, khám bệnh ghi nhận:\s*$/.test(String(text || "").trim());
+}
+
+function syncAutoTomtat(el, text, ready) {
+  const current = (el.value || "").trim();
+  if (!ready) {
+    if (!current || current === lastAutoTomtat || looksLikeAutoTomtat(current)) {
+      el.value = "";
+      lastAutoTomtat = "";
+    }
+    return;
+  }
+
+  if (current && current !== lastAutoTomtat && !looksLikeAutoTomtat(current)) return;
+  el.value = text;
+  lastAutoTomtat = text;
+}
+
 function updateTomtat() {
   const tuoi = (document.getElementById("tuoi")?.textContent || "").trim();
   const para = (document.getElementById("para")?.value || "").trim();
   const lydo = (document.getElementById("lydo")?.value || "").trim();
+  const kinhCuoiMode = document.getElementById("kinhCuoiMode")?.value || "quen";
+  const kinhCuoiDate = (document.getElementById("kinhCuoiDate")?.value || "").trim();
 
-  const ageText = (tuoi && tuoi !== "-") ? tuoi : "...";
-  const paraText = para ? para : "....";
-  const reasonText = lydo ? lydo : "...";
   const kinhCuoiText = getKinhCuoiText();
-
-  const text = `Bệnh nhân ${ageText} tuổi, PARA ${paraText}, kinh cuối ${kinhCuoiText}, vào viện vì lý do ${reasonText}. Qua hỏi bệnh, khám bệnh ghi nhận:`;
   const el = document.getElementById("tomtat");
   if (!el) return;
 
-  const current = (el.value || "").trim();
-  if (current && current !== text) return;
+  const hasAge = !!tuoi && tuoi !== "-" && tuoi !== "--";
+  const hasKinhCuoi = kinhCuoiMode === "quen" || !!kinhCuoiDate;
+  const ready = hasAge && !!para && !!lydo && hasKinhCuoi;
+  if (!ready) {
+    syncAutoTomtat(el, "", false);
+    return;
+  }
 
-  el.value = text;
+  const text = `Bệnh nhân ${tuoi} tuổi, PARA ${para}, kinh cuối ${kinhCuoiText}, vào viện vì lý do ${lydo}. Qua hỏi bệnh, khám bệnh ghi nhận:`;
+  syncAutoTomtat(el, text, true);
 }
 
 ["lydo", "para"].forEach(id => {

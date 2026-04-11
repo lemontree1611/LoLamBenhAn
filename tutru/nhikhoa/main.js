@@ -282,13 +282,34 @@ function insertcokhop()  { _setTextareaFromSelect("cokhopSelect",  "cokhop"); }
 // ===============================
 //  AUTO SUMMARY
 // ===============================
+let lastAutoTomtat = "";
+
+function looksLikeAutoTomtat(text) {
+  return /^(Bệnh nhân|Bệnh nhi|Sản phụ)\b[\s\S]*Qua hỏi bệnh, khám bệnh ghi nhận:\s*$/.test(String(text || "").trim());
+}
+
+function syncAutoTomtat(el, text, ready) {
+  const current = (el.value || "").trim();
+  if (!ready) {
+    if (!current || current === lastAutoTomtat || looksLikeAutoTomtat(current)) {
+      el.value = "";
+      lastAutoTomtat = "";
+    }
+    return;
+  }
+
+  if (current && current !== lastAutoTomtat && !looksLikeAutoTomtat(current)) return;
+  el.value = text;
+  lastAutoTomtat = text;
+}
+
 function updateTomtat() {
   const gtRaw = (document.getElementById("gioitinh")?.value || "").trim();
-  const gioitinh = gtRaw ? gtRaw.toLowerCase() : "--"; // nam/nữ
+  const gioitinh = gtRaw ? gtRaw.toLowerCase() : "";
   const tuoi = (document.getElementById("tuoi")?.textContent || "-").trim();
-  const tuoiText = (tuoi && tuoi !== "-" && tuoi !== "--") ? tuoi : "--";
+  const tuoiText = (tuoi && tuoi !== "-" && tuoi !== "--") ? tuoi : "";
   const lydo = (document.getElementById("lydo")?.value || "").trim();
-  const lydoText = lydo ? lydo : "--";
+  const lydoText = lydo ? lydo : "";
 
   const text = (() => {
     const parts = [];
@@ -308,10 +329,13 @@ function updateTomtat() {
   const el = document.getElementById("tomtat");
   if (!el) return;
 
-  const current = (el.value || "").trim();
-  if (current && current !== text) return;
+  const ready = !!gioitinh && !!tuoiText && !!lydoText;
+  if (!ready) {
+    syncAutoTomtat(el, "", false);
+    return;
+  }
 
-  el.value = text;
+  syncAutoTomtat(el, text, true);
 }
 
 ["gioitinh", "lydo"].forEach(id => {

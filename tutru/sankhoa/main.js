@@ -90,27 +90,46 @@ function insertcokhop()  { _setTextareaFromSelect("cokhopSelect",  "cokhop"); }
 // ===============================
 //  AUTO SUMMARY
 // ===============================
+let lastAutoTomtat = "";
+
+function looksLikeAutoTomtat(text) {
+  return /^(Bệnh nhân|Bệnh nhi|Sản phụ)\b[\s\S]*Qua hỏi bệnh, khám bệnh ghi nhận:\s*$/.test(String(text || "").trim());
+}
+
+function syncAutoTomtat(el, text, ready) {
+  const current = (el.value || "").trim();
+  if (!ready) {
+    if (!current || current === lastAutoTomtat || looksLikeAutoTomtat(current)) {
+      el.value = "";
+      lastAutoTomtat = "";
+    }
+    return;
+  }
+
+  if (current && current !== lastAutoTomtat && !looksLikeAutoTomtat(current)) return;
+  el.value = text;
+  lastAutoTomtat = text;
+}
+
 function updateTomtat() {
   const tuoi = (document.getElementById("tuoi")?.textContent || "").trim();
   const para = (document.getElementById("para")?.value || "").trim();
   const lydo = (document.getElementById("lydo")?.value || "").trim();
 
-  const ageText = (tuoi && tuoi !== "-") ? `${tuoi} tuổi` : "... tuổi";
-  const paraText = para ? para : "....";
-  const reasonText = lydo ? lydo : "...";
-
   // ưu tiên dự sinh từ Siêu âm 1 (TCN1) nếu tính được
   const due = calcDueDateFromSA1();
-  const dueText = due ? formatDDMMYYYY(due) : "..../..../....";
-
-  const text = `Sản phụ ${ageText}, PARA ${paraText}, vào viện vì lý do ${reasonText}, dự sinh ${dueText}. Qua hỏi bệnh, khám bệnh ghi nhận:`;
   const el = document.getElementById("tomtat");
   if (!el) return;
 
-  const current = (el.value || "").trim();
-  if (current && current !== text) return;
+  const hasAge = !!tuoi && tuoi !== "-" && tuoi !== "--";
+  const ready = hasAge && !!para && !!lydo && !!due;
+  if (!ready) {
+    syncAutoTomtat(el, "", false);
+    return;
+  }
 
-  el.value = text;
+  const text = `Sản phụ ${tuoi} tuổi, PARA ${para}, vào viện vì lý do ${lydo}, dự sinh ${formatDDMMYYYY(due)}. Qua hỏi bệnh, khám bệnh ghi nhận:`;
+  syncAutoTomtat(el, text, true);
 }
 
 ["lydo", "para"].forEach(id => {
