@@ -1082,6 +1082,30 @@ async function sharedRoomTouch(roomId, formType = null) {
   );
 }
 
+function countFilledStateFields(state) {
+  if (!state || typeof state !== "object") return 0;
+  let count = 0;
+  for (const value of Object.values(state)) {
+    if (value === true) {
+      count++;
+    } else if (typeof value === "string" && value.trim()) {
+      count++;
+    } else if (Array.isArray(value) && value.length > 0) {
+      count++;
+    } else if (value && typeof value === "object" && Object.keys(value).length > 0) {
+      count++;
+    }
+  }
+  return count;
+}
+
+function isSuspiciousStateRegression(prevState, nextState) {
+  const prevFilled = countFilledStateFields(prevState);
+  const nextFilled = countFilledStateFields(nextState);
+  if (prevFilled < 8) return false;
+  return nextFilled <= 2 || nextFilled < Math.floor(prevFilled * 0.25);
+}
+
 async function sharedRoomUpsert(roomId, formType, state) {
   if (!pool || !roomId) return;
   await pool.query(
@@ -1600,6 +1624,17 @@ wss.on("connection", (ws) => {
     if (type === "state") {
       const room = getRoom(roomId);
       if (msg.payload && typeof msg.payload === "object") {
+        if (isSuspiciousStateRegression(room.lastState, msg.payload)) {
+          console.warn("[share] ignored suspicious state regression", {
+            room: roomId,
+            prevFilled: countFilledStateFields(room.lastState),
+            nextFilled: countFilledStateFields(msg.payload)
+          });
+          if (room.lastState && typeof room.lastState === "object") {
+            send(ws, { type: "state", room: roomId, clientId: "server", payload: room.lastState });
+          }
+          return;
+        }
         room.lastState = msg.payload;
       }
       const formType = String(msg.formType || "").trim() || null;

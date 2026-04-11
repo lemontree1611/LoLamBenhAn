@@ -99,10 +99,6 @@ function looksLikeAutoTomtat(text) {
 function syncAutoTomtat(el, text, ready) {
   const current = (el.value || "").trim();
   if (!ready) {
-    if (!current || current === lastAutoTomtat || looksLikeAutoTomtat(current)) {
-      el.value = "";
-      lastAutoTomtat = "";
-    }
     return;
   }
 
@@ -1906,7 +1902,7 @@ _initClsSearch();
       }
 
       // đẩy state hiện tại lên ngay (để người vào sau nhận)
-      scheduleSendState(true);
+      if (showNotice) scheduleSendState(true);
     };
 
     ws.onmessage = (ev) => {

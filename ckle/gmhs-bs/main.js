@@ -1452,7 +1452,7 @@ if (chatInput) {
         bindNoticeCopyButton();
       }
 
-      scheduleSendState(true);
+      if (showNotice) scheduleSendState(true);
     };
 
     ws.onmessage = (ev) => {
