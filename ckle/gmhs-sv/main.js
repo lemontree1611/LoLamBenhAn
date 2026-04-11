@@ -837,19 +837,35 @@ function resetChat() {
   if (chatMessages) chatMessages.innerHTML = "";
 }
 
-function buildFormContextForBot() {
-  // lấy đúng 2 trường bạn yêu cầu
-  const tomtat = (document.getElementById("tomtat")?.value || "").trim();
-  const chandoanso = (document.getElementById("chandoanso")?.value || "").trim();
+function shouldAttachFormContextForBot(userText = "") {
+  return /(bệnh án|benh an|form|đọc|doc|xem|kiểm tra|kiem tra|nhận xét|nhan xet|đánh giá|danh gia|chẩn đoán|chan doan|đúng chưa|dung chua|hợp lý|hop ly|tóm tắt|tom tat|khám|kham|điều trị|dieu tri|cận lâm sàng|can lam sang|cls|kết quả|ket qua)/i.test(String(userText || ""));
+}
 
-  // nếu cả 2 trống thì khỏi gửi context
-  if (!tomtat && !chandoanso) return "";
+function getFormFieldLabel(el) {
+  const byFor = el.id ? document.querySelector(`label[for="${CSS.escape(el.id)}"]`) : null;
+  const scoped = el.closest(".col, .row, .section")?.querySelector("label");
+  return (byFor?.textContent || scoped?.textContent || el.name || el.id || "Trường dữ liệu").replace(/\s+/g, " ").trim();
+}
 
-  return `
-DỮ LIỆU TỪ FORM (tham khảo khi trả lời):
-- Tóm tắt bệnh án: ${tomtat || "(chưa có)"}
-- Chẩn đoán sơ bộ: ${chandoanso || "(chưa có)"}
-`.trim();
+function buildFormContextForBot(userText = "") {
+  if (!shouldAttachFormContextForBot(userText)) return "";
+  const form = document.querySelector("form");
+  if (!form) return "";
+
+  const lines = [];
+  const fields = form.querySelectorAll("textarea, input, select");
+  for (const el of fields) {
+    if (!el.id || el.type === "hidden" || el.type === "button" || el.type === "submit" || el.type === "password") continue;
+    if ((el.type === "radio" || el.type === "checkbox") && !el.checked) continue;
+    const raw = el.type === "radio" || el.type === "checkbox" ? el.value : el.value;
+    const value = String(raw || "").trim();
+    if (!value) continue;
+    const clipped = value.length > 1200 ? `${value.slice(0, 1200).trim()}...` : value;
+    lines.push(`- ${getFormFieldLabel(el)}: ${clipped}`);
+  }
+
+  if (!lines.length) return "";
+  return `DỮ LIỆU TỪ FORM BỆNH ÁN (chỉ dùng để tham khảo khi trả lời câu hỏi hiện tại):\n${lines.slice(0, 40).join("\n")}`;
 }
 
 function normalizeMathForChat(text = "") {
@@ -939,12 +955,12 @@ async function sendMessage() {
 
   try {
     // ✅ Cách 3: bơm context từ form (tóm tắt + chẩn đoán sơ bộ)
-    const formContext = buildFormContextForBot();
+    const formContext = buildFormContextForBot(text);
     const userContent = formContext ? (formContext + "\n\nCâu hỏi: " + text) : text;
     const requestMessages = buildMinimalChatMessages(chatHistory, userContent);
 
     // ✅ Cách 1/2/3: lưu lịch sử theo mode
-    chatHistory.push({ role: "user", content: userContent });
+    chatHistory.push({ role: "user", content: text });
     saveChatHistory();
 
     const response = await fetch(CHAT_API_URL, {
