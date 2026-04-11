@@ -1098,10 +1098,12 @@ function _insertClsAtCursor(text) {
   const value = el.value || "";
   const start = Number.isFinite(el.selectionStart) ? el.selectionStart : value.length;
   const end = Number.isFinite(el.selectionEnd) ? el.selectionEnd : value.length;
-  const atEnd = start === value.length && end === value.length;
-  const prefix = (atEnd && value && !value.endsWith("\n")) ? "\n" : "";
+  const before = value.slice(0, start);
+  const after = value.slice(end);
+  const prefix = before && !/\s$/.test(before) ? " " : "";
+  const suffix = after && !/^\s/.test(after) ? " " : "";
   const insert = `${prefix}${text}`;
-  const nextValue = value.slice(0, start) + insert + value.slice(end);
+  const nextValue = before + insert + suffix + after;
   el.value = nextValue;
   const caret = start + insert.length;
   el.focus();
