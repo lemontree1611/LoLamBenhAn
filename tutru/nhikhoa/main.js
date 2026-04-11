@@ -303,13 +303,17 @@ function syncAutoTomtat(el, text, ready) {
   lastAutoTomtat = text;
 }
 
+function lowercaseFirstText(text) {
+  return String(text || "").replace(/\S/, (ch) => ch.toLocaleLowerCase("vi-VN"));
+}
+
 function updateTomtat() {
   const gtRaw = (document.getElementById("gioitinh")?.value || "").trim();
   const gioitinh = gtRaw ? gtRaw.toLowerCase() : "";
   const tuoi = (document.getElementById("tuoi")?.textContent || "-").trim();
   const tuoiText = (tuoi && tuoi !== "-" && tuoi !== "--") ? tuoi : "";
   const lydo = (document.getElementById("lydo")?.value || "").trim();
-  const lydoText = lydo ? lydo : "";
+  const lydoText = lydo ? lowercaseFirstText(lydo) : "";
 
   const text = (() => {
     const parts = [];

@@ -194,6 +194,10 @@ function syncAutoTomtat(el, text, ready) {
   lastAutoTomtat = text;
 }
 
+function lowercaseFirstText(text) {
+  return String(text || "").replace(/\S/, (ch) => ch.toLocaleLowerCase("vi-VN"));
+}
+
 function updateTomtat() {
   const tuoi = (document.getElementById("tuoi")?.textContent || "").trim();
   const para = (document.getElementById("para")?.value || "").trim();
@@ -213,7 +217,7 @@ function updateTomtat() {
     return;
   }
 
-  const text = `Bệnh nhân ${tuoi} tuổi, PARA ${para}, kinh cuối ${kinhCuoiText}, vào viện vì lý do ${lydo}. Qua hỏi bệnh, khám bệnh ghi nhận:`;
+  const text = `Bệnh nhân ${tuoi} tuổi, PARA ${para}, kinh cuối ${kinhCuoiText}, vào viện vì lý do ${lowercaseFirstText(lydo)}. Qua hỏi bệnh, khám bệnh ghi nhận:`;
   syncAutoTomtat(el, text, true);
 }
 
