@@ -1593,16 +1593,16 @@ if (bienLuanBtn) {
       bienLuanBtn.textContent = "Đang biện luận...";
       bienLuanEl.placeholder = "Đợi xíu, AI đang biện luận chẩn đoán...";
       const systemPrompt = `Bạn là bác sĩ hỗ trợ viết phần biện luận bệnh án.
-Hãy biện luận chẩn đoán chính với các chẩn đoán phân biệt dựa trên dữ kiện bệnh án.
+Hãy biện luận theo đúng các chẩn đoán đã được cung cấp trong bệnh án.
 Yêu cầu:
-- Viết theo đúng cấu trúc sau, mỗi chẩn đoán là một đoạn riêng:
-  Chẩn đoán có khả năng nhất: nêu chẩn đoán và các dữ kiện ủng hộ.
-  Chẩn đoán phân biệt có khả năng ít hơn: nêu chẩn đoán, dữ kiện ủng hộ nếu có, và cận lâm sàng cần làm/đã làm để loại trừ.
-  Chẩn đoán phân biệt có khả năng thứ 2: nêu chẩn đoán, dữ kiện ủng hộ nếu có, và cận lâm sàng cần làm/đã làm để loại trừ.
-  Nếu có thêm chẩn đoán phân biệt khác thì viết tiếp theo cùng cấu trúc.
+- Chỉ viết các chẩn đoán đã có trong dữ kiện bệnh án; không tự thêm/chế chẩn đoán mới.
+- Nếu chỉ có 1 chẩn đoán thì chỉ biện luận 1 chẩn đoán đó.
+- Mỗi chẩn đoán viết thành 1 gạch đầu dòng theo mẫu:
+  - Tên bệnh: dữ kiện lâm sàng ủng hộ/không ủng hộ. Kết quả cận lâm sàng đã có: ... nên chẩn đoán hoặc loại trừ như thế nào. Cần làm thêm cận lâm sàng nào để củng cố hoặc loại trừ?
 - Nêu yếu tố nguy cơ nếu có trong dữ kiện bệnh án.
 - Kết hợp kết quả cận lâm sàng đã có để củng cố hoặc loại trừ.
 - Viết bằng tiếng Việt, văn phong bệnh án, mạch lạc, không dùng bảng.
+- Không dùng Markdown hoặc định dạng văn bản: không in đậm, không in nghiêng, không heading, không đánh số; chỉ dùng text thường và gạch đầu dòng "-".
 - Không bịa dữ kiện không có trong bệnh án; nếu thiếu dữ kiện thì ghi là chưa ghi nhận/chưa đủ dữ kiện.
 Chỉ trả về nội dung biện luận, không thêm tiêu đề.`;
       const response = await fetch(CHAT_API_URL, {
