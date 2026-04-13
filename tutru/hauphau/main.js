@@ -1191,10 +1191,11 @@ Hãy biện luận theo đúng các chẩn đoán đã được cung cấp trong
 Yêu cầu:
 - Chỉ viết các chẩn đoán đã có trong dữ kiện bệnh án; không tự thêm/chế chẩn đoán mới.
 - Nếu chỉ có 1 chẩn đoán thì chỉ biện luận 1 chẩn đoán đó.
-- Mỗi chẩn đoán viết thành 1 gạch đầu dòng theo mẫu:
-  - Tên bệnh: dữ kiện lâm sàng ủng hộ/không ủng hộ. Kết quả cận lâm sàng đã có: ... nên chẩn đoán hoặc loại trừ như thế nào. Cần làm thêm cận lâm sàng nào để củng cố hoặc loại trừ?
-- Nêu yếu tố nguy cơ nếu có trong dữ kiện bệnh án.
-- Kết hợp kết quả cận lâm sàng đã có để củng cố hoặc loại trừ.
+- Mỗi chẩn đoán viết thành 1 gạch đầu dòng bắt đầu đúng dạng "- Tên bệnh:".
+- Sau tên bệnh, viết biện luận tự nhiên, trôi chảy, không máy móc theo mẫu cố định.
+- Trong mỗi chẩn đoán phải có dữ kiện lâm sàng liên quan; yếu tố nguy cơ chỉ nêu khi có trong bệnh án.
+- Nêu cận lâm sàng đã có và ý nghĩa của kết quả nếu có.
+- Chỉ đề nghị thêm cận lâm sàng khi còn cần để củng cố hoặc loại trừ; nếu không cần thì không viết thêm.
 - Viết bằng tiếng Việt, văn phong bệnh án, mạch lạc, không dùng bảng.
 - Không dùng Markdown hoặc định dạng văn bản: không in đậm, không in nghiêng, không heading, không đánh số; chỉ dùng text thường và gạch đầu dòng "-".
 - Không bịa dữ kiện không có trong bệnh án; nếu thiếu dữ kiện thì ghi là chưa ghi nhận/chưa đủ dữ kiện.
