@@ -855,6 +855,8 @@ const SHARE_ROOM_CLEANUP_INTERVAL_HOURS = Math.max(
   1,
   Number(process.env.SHARE_ROOM_CLEANUP_INTERVAL_HOURS || 6)
 );
+const SHARE_ROOM_CLEANUP_ENABLED =
+  String(process.env.SHARE_ROOM_CLEANUP_ENABLED || "true").toLowerCase() !== "false";
 
 // ---------- HOI CHAN: DB helpers ----------
 async function hoichanInitTable() {
@@ -999,7 +1001,7 @@ async function sharedRoomDelete(roomId) {
 }
 
 async function sharedRoomsCleanupExpired() {
-  if (!pool) return;
+  if (!pool || !SHARE_ROOM_CLEANUP_ENABLED) return;
   const { rowCount } = await pool.query(
     `DELETE FROM shared_form_rooms
      WHERE expires_at <= NOW()`
@@ -1329,6 +1331,7 @@ if (cleanupEnabled) {
 // ================== WS CŨ (BỆNH ÁN) ==================
 // roomId -> { clients:Set<ws>, lastState:Object|null, locks:Map<string,{by:string,at:number}>, formType:string|null }
 const rooms = new Map();
+const sharedRoomPersistTimers = new Map();
 
 function getRoom(roomId) {
   if (!rooms.has(roomId)) {
@@ -1340,6 +1343,30 @@ function getRoom(roomId) {
     });
   }
   return rooms.get(roomId);
+}
+
+function clearSharedRoomPersistTimer(roomId) {
+  const timer = sharedRoomPersistTimers.get(roomId);
+  if (timer) clearTimeout(timer);
+  sharedRoomPersistTimers.delete(roomId);
+}
+
+function scheduleSharedRoomPersist(roomId, delayMs = 800) {
+  if (!pool || !roomId) return;
+  clearSharedRoomPersistTimer(roomId);
+  const timer = setTimeout(() => {
+    sharedRoomPersistTimers.delete(roomId);
+    const room = rooms.get(roomId);
+    if (!room) return;
+
+    const stateToPersist = room.lastState;
+    if (stateToPersist && typeof stateToPersist === "object") {
+      sharedRoomUpsert(roomId, room.formType || null, stateToPersist).catch((e) =>
+        console.error("[share] persist room error", roomId, e)
+      );
+    }
+  }, delayMs);
+  sharedRoomPersistTimers.set(roomId, timer);
 }
 
 function safeSend(ws, obj) {
@@ -1510,6 +1537,7 @@ wss.on("connection", (ws) => {
         room.formType = formType;
         ws._formType = formType;
       }
+      scheduleSharedRoomPersist(roomId);
       broadcast(
         roomId,
         { type: "state", room: roomId, clientId, payload: msg.payload },
@@ -1521,6 +1549,7 @@ wss.on("connection", (ws) => {
     if (type === "clear") {
       const room = getRoom(roomId);
       room.lastState = null;
+      clearSharedRoomPersistTimer(roomId);
 
       room.locks.clear();
       broadcast(roomId, { type: "locks", room: roomId, payload: {} }, null);
@@ -1563,6 +1592,7 @@ wss.on("connection", (ws) => {
 
     room.clients.delete(ws);
     if (room.clients.size === 0) {
+      clearSharedRoomPersistTimer(roomId);
       const stateToPersist = room.lastState;
       const formTypeToPersist = room.formType || ws._formType || null;
       if (stateToPersist && typeof stateToPersist === "object") {
@@ -1613,14 +1643,16 @@ server.listen(PORT, () => {
   );
 });
 
-setTimeout(() => {
-  sharedRoomsCleanupExpired().catch((e) =>
-    console.error("[share] cleanup error", e)
-  );
-}, 20_000);
+if (SHARE_ROOM_CLEANUP_ENABLED) {
+  setTimeout(() => {
+    sharedRoomsCleanupExpired().catch((e) =>
+      console.error("[share] cleanup error", e)
+    );
+  }, 20_000);
 
-setInterval(() => {
-  sharedRoomsCleanupExpired().catch((e) =>
-    console.error("[share] cleanup error", e)
-  );
-}, SHARE_ROOM_CLEANUP_INTERVAL_HOURS * 60 * 60 * 1000);
+  setInterval(() => {
+    sharedRoomsCleanupExpired().catch((e) =>
+      console.error("[share] cleanup error", e)
+    );
+  }, SHARE_ROOM_CLEANUP_INTERVAL_HOURS * 60 * 60 * 1000);
+}

@@ -1,4 +1,4 @@
-// ===============================
+﻿// ===============================
 //  AUTO AGE (DOB) + Z-SCORE CHECK
 // ===============================
 const ngaysinhInput = document.getElementById('ngaysinh');
@@ -1132,34 +1132,6 @@ function buildFormContextForBot(userText = "") {
   return `DỮ LIỆU TỪ FORM BỆNH ÁN (chỉ dùng để tham khảo khi trả lời câu hỏi hiện tại):\n${lines.slice(0, 40).join("\n")}`;
 }
 
-const DIAG_API_URL = CHAT_API_URL;
-const DIAG_DEBOUNCE_MS = 1200;
-const DIAG_MIN_LEN = 10;
-
-const DIAG_SYSTEM_PROMPT = `
-Bạn là bác sĩ nội khoa hỗ trợ soạn bệnh án.
-Từ tóm tắt bệnh án, hãy đề xuất:
-1) 1 chẩn đoán sơ bộ có khả năng cao nhất
-2) 2 chẩn đoán phân biệt có khả năng thấp hơn (khả năng thứ 2 và 3)
-
-Mỗi chẩn đoán phải là 1 câu tự nhiên, KHÔNG dùng dấu "+".
-Giữ dấu "/" trước phần tiền sử bệnh nền.
-Nếu tóm tắt bệnh án không có tiền sử/tiền căn thì bỏ phần từ dấu "/" trở về sau.
-Ví dụ đúng:
-"Viêm phổi cộng đồng mức độ trung bình do vi khuẩn, có yếu tố thúc đẩy hút thuốc lá / tiền sử COPD."
-
-Chỉ trả về JSON hợp lệ, không thêm giải thích.
-Schema:
-{
-  "chandoan_so": "string",
-  "chandoan_phanbiet": ["string", "string"]
-}
-`.trim();
-
-let autoDiagTimer = 0;
-let autoDiagSeq = 0;
-let lastTomtatRequested = "";
-
 function _extractJsonFromText(text) {
   if (!text) return null;
   const trimmed = String(text).trim();
@@ -1634,93 +1606,12 @@ function _formatClsOutput(parsed, canonList, allowedList = canonList) {
   ].join("\n");
 }
 
-function _parseDiagnosisReply(reply) {
-  const json = _extractJsonFromText(reply);
-  if (json) {
-    const so = String(
-      json.chandoan_so ??
-      json.chandoanSo ??
-      json.so_bo ??
-      json.sobo ??
-      json.primary ??
-      ""
-    ).trim();
-
-    let pd = json.chandoan_phanbiet ?? json.phanbiet ?? json.phan_biet ?? json.differentials ?? [];
-    if (typeof pd === "string") pd = _splitDiagList(pd);
-    if (!Array.isArray(pd)) pd = [];
-
-    const phanBiet = pd.map(_cleanDiagLine).filter(Boolean).slice(0, 2);
-    return { soBo: so, phanBiet, canLamSang: "" };
-  }
-
-  let soBo = "";
-  let phanBiet = [];
-
-  const soMatch = String(reply || "").match(/chẩn\s*đoán\s*sơ\s*bộ\s*:?\s*(.+)/i);
-  if (soMatch && soMatch[1]) soBo = soMatch[1].trim();
-
-  const pdMatch = String(reply || "").match(/chẩn\s*đoán\s*phân\s*biệt\s*:?\s*([\s\S]*)/i);
-  if (pdMatch && pdMatch[1]) phanBiet = _splitDiagList(pdMatch[1]);
-
-  if (!soBo || phanBiet.length === 0) {
-    const lines = _splitDiagList(reply);
-    if (!soBo && lines.length) soBo = lines[0];
-    if (phanBiet.length === 0 && lines.length > 1) phanBiet = lines.slice(1);
-  }
-
-  return {
-    soBo: (soBo || "").trim(),
-    phanBiet: phanBiet.map(_cleanDiagLine).filter(Boolean).slice(0, 2),
-    canLamSang: "",
-  };
-}
-
 function _setTextareaValue(el, value) {
   if (!el || el.disabled) return false;
   el.value = value;
   el.dispatchEvent(new Event("input", { bubbles: true }));
   el.dispatchEvent(new Event("change", { bubbles: true }));
   return true;
-}
-
-function _formatHuongDieuTriList(text) {
-  const raw = String(text || "").trim();
-  if (!raw) return "";
-
-  let parts = raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-  if (parts.length <= 1) {
-    const semi = raw.split(/\s*;\s*/).map(s => s.trim()).filter(Boolean);
-    if (semi.length > 1) parts = semi;
-  }
-
-  const normalize = (s) => s
-    .replace(/^[-•*]\s*/, "")
-    .replace(/^\d+[\).\-\s]+/, "")
-    .trim();
-
-  if (parts.length <= 1) {
-    const one = normalize(parts[0] || raw);
-    return one ? `- ${one}` : "";
-  }
-
-  return parts
-    .map(normalize)
-    .filter(Boolean)
-    .map(s => `- ${s}`)
-    .join("\n");
-}
-
-function _stripHistoryIfMissing(tomtat, text) {
-  const hasHistory = /(tiền\s*sử|tiền\s*căn|bệnh\s*nền|tien\s*su|tien\s*can|benh\s*nen)/i.test(String(tomtat || ""));
-  if (hasHistory) return String(text || "").trim();
-  return String(text || "").replace(/\s*\/\s*[^/]*$/g, "").trim();
-}
-
-function _stripPatientPrefix(text) {
-  return String(text || "")
-    .replace(/^\s*(bệnh\s*nhân|bn)\s*(bị|được\s*chẩn\s*đoán|chẩn\s*đoán\s*là)\s*[:\-]?\s*/i, "")
-    .trim();
 }
 
 function _setDiagPlaceholders(loading, opts = {}) {
@@ -1778,92 +1669,6 @@ function _setDiagPlaceholders(loading, opts = {}) {
     }
   });
 }
-
-function scheduleAutoDiagnosis(immediate = false) {
-  const tomtatEl = document.getElementById("tomtat");
-  if (!tomtatEl) return;
-
-  const tomtat = tomtatEl.value.trim();
-  if (!tomtat || tomtat.length < DIAG_MIN_LEN) return;
-
-  // nếu không đổi tóm tắt thì không gọi lại
-  if (tomtat === lastTomtatRequested && !autoDiagTimer) return;
-
-  if (autoDiagTimer) clearTimeout(autoDiagTimer);
-  autoDiagTimer = setTimeout(() => {
-    autoDiagTimer = 0;
-    runAutoDiagnosis(tomtat);
-  }, immediate ? 0 : DIAG_DEBOUNCE_MS);
-}
-
-async function runAutoDiagnosis(tomtat) {
-  const soEl = document.getElementById("chandoanso");
-  const pdEl = document.getElementById("chandoanpd");
-  if (!soEl || !pdEl) return;
-
-  const before = { so: soEl.value, pd: pdEl.value };
-  const requestId = ++autoDiagSeq;
-  lastTomtatRequested = tomtat;
-
-  try {
-    _setDiagPlaceholders(true, { cls: false });
-
-    const messages = [
-      { role: "system", content: DIAG_SYSTEM_PROMPT },
-      { role: "user", content: `Tóm tắt bệnh án:\n${tomtat}\n\nTrả về JSON theo schema.` }
-    ];
-
-    const response = await fetch(DIAG_API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages })
-    });
-
-    const raw = await response.text();
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${raw.slice(0, 200)}`);
-
-    let data;
-    try { data = JSON.parse(raw); } catch (_) {
-      throw new Error(`Server không trả JSON. Nhận: ${raw.slice(0, 200)}`);
-    }
-
-    const reply = (data && typeof data.answer === "string" && data.answer.trim())
-      ? data.answer.trim()
-      : "";
-
-    if (!reply) return;
-
-    // nếu có request mới hơn thì bỏ qua
-    if (requestId !== autoDiagSeq) return;
-
-    // nếu tóm tắt đã đổi trong lúc chưa xong thì bỏ qua
-    const curTomtat = (document.getElementById("tomtat")?.value || "").trim();
-    if (curTomtat && curTomtat !== tomtat) return;
-
-    const parsed = _parseDiagnosisReply(reply);
-    if (!parsed || (!parsed.soBo && (!parsed.phanBiet || parsed.phanBiet.length === 0))) return;
-
-    const soBoFinal = _stripHistoryIfMissing(tomtat, parsed.soBo);
-    const phanBietFinal = (parsed.phanBiet || []).map(x => _stripHistoryIfMissing(tomtat, x)).filter(Boolean);
-
-    const canSetSo = soBoFinal
-      && document.activeElement !== soEl
-      && (soEl.value === before.so || !soEl.value.trim());
-
-    const canSetPd = phanBietFinal && phanBietFinal.length
-      && document.activeElement !== pdEl
-      && (pdEl.value === before.pd || !pdEl.value.trim());
-
-    if (canSetSo) _setTextareaValue(soEl, soBoFinal);
-    if (canSetPd) _setTextareaValue(pdEl, phanBietFinal.slice(0, 2).join("\n"));
-  } catch (err) {
-    console.warn("Auto diagnosis failed:", err);
-  } finally {
-    _setDiagPlaceholders(false, { cls: false });
-  }
-}
-
-// Chỉ auto khi người dùng rời ô tóm tắt (blur)
 
 // ===============================
 //  CLS AI SUPPORT (button)
@@ -1935,7 +1740,7 @@ ${shortlistText}`
         }
       ];
 
-      const response = await fetch(DIAG_API_URL, {
+      const response = await fetch(CHAT_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages })
@@ -1969,103 +1774,87 @@ ${shortlistText}`
   });
 }
 
-// ===============================
-//  FINAL DIAGNOSIS AI (button)
-// ===============================
-const diagBtn = document.getElementById("btn-diag-ai");
-if (diagBtn) {
-  diagBtn.addEventListener("click", async () => {
-    const tomtat = (document.getElementById("tomtat")?.value || "").trim();
-    if (!tomtat) {
-      alert("Hãy nhập tóm tắt bệnh án trước.");
-      return;
-    }
-
-    const ketqua = (document.getElementById("ketqua")?.value || "").trim();
-    if (!ketqua) {
-      alert("Hãy nhập kết quả cận lâm sàng.");
-      return;
-    }
-
-    const xacdinhEl = document.getElementById("chandoanxacdinh");
-    if (!xacdinhEl) return;
-
-    if (xacdinhEl.value.trim()) {
-      const ok = confirm("Ô chẩn đoán xác định đã có dữ liệu. Bạn muốn chẩn đoán lại không?");
-      if (!ok) return;
-      _setTextareaValue(xacdinhEl, "");
-      const huongClearEl = document.getElementById("huongdieutri");
-      if (huongClearEl) _setTextareaValue(huongClearEl, "");
-    }
-
-    try {
-      diagBtn.disabled = true;
-      _setDiagPlaceholders(true, { cls: false, final: true });
-
-      const FINAL_DIAG_PROMPT = `
-Bạn là bác sĩ nội khoa.
-Dựa trên tóm tắt bệnh án và kết quả cận lâm sàng, hãy trả về:
-1) 1 chẩn đoán xác định (1 câu duy nhất, theo form như chẩn đoán sơ bộ)
-2) Hướng điều trị (liệt kê từng ý cụ thể, càng chuyên khoa càng tốt)
-
-Yêu cầu cho "huong_dieu_tri":
-- Dạng gạch đầu dòng, mỗi ý 1 dòng, bắt đầu bằng "- ".
-- Mỗi ý ngắn gọn, cụ thể, ưu tiên: xử trí ban đầu/ổn định, điều trị nguyên nhân, điều trị triệu chứng, theo dõi - đánh giá đáp ứng, phòng ngừa biến chứng, tiêu chí hội chẩn/chuyển tuyến, tư vấn/dặn dò (chọn phù hợp ca bệnh).
-- Không viết đoạn văn dài, không đánh số.
-
-Chẩn đoán phải là 1 câu tự nhiên, KHÔNG dùng dấu "+".
-Không bắt đầu bằng "Bệnh nhân..." hay "BN...".
-Giữ dấu "/" trước phần tiền sử bệnh nền nếu có; nếu không có thì bỏ phần sau "/".
-
-Trả về JSON theo schema:
-{
-  "chandoan_xacdinh": "string",
-  "huong_dieu_tri": "string"
+function _getBienLuanField(id, label) {
+  const value = (document.getElementById(id)?.value || "").trim();
+  return value ? `${label}:\n${value}` : "";
 }
-`.trim();
 
-      const messages = [
-        { role: "system", content: FINAL_DIAG_PROMPT },
-        { role: "user", content: `Tóm tắt bệnh án:\n${tomtat}\n\nKết quả cận lâm sàng:\n${ketqua}` }
-      ];
+function _setBienLuanValue(el, value) {
+  el.value = String(value || "").trim();
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+}
 
-      const response = await fetch(DIAG_API_URL, {
+function _buildBienLuanContext() {
+  const mainDiag = (document.getElementById("chandoanxacdinh")?.value || "").trim()
+    || (document.getElementById("chandoanso")?.value || "").trim();
+  const parts = [
+    _getBienLuanField("tomtat", "Tóm tắt bệnh án"),
+    _getBienLuanField("benhsu", "Bệnh sử"),
+    _getBienLuanField("tiensu", "Tiền sử/yếu tố nguy cơ"),
+    _getBienLuanField("tongtrang", "Toàn trạng"),
+    _getBienLuanField("timmach", "Tuần hoàn"),
+    _getBienLuanField("hopho", "Hô hấp"),
+    _getBienLuanField("tieuhoa", "Tiêu hoá"),
+    _getBienLuanField("than", "Thận - tiết niệu"),
+    _getBienLuanField("thankinh", "Thần kinh"),
+    _getBienLuanField("cokhop", "Cơ - xương - khớp"),
+    _getBienLuanField("coquankhac", "Cơ quan khác"),
+    _getBienLuanField("cls_dalam", "Cận lâm sàng đã làm"),
+    _getBienLuanField("ketqua", "Kết quả cận lâm sàng"),
+    mainDiag ? `Chẩn đoán chính:\n${mainDiag}` : "",
+    _getBienLuanField("chandoanpd", "Chẩn đoán phân biệt")
+  ].filter(Boolean);
+  return { mainDiag, text: parts.join("\n\n") };
+}
+
+const bienLuanBtn = document.getElementById("btn-bienluan-ai");
+if (bienLuanBtn) {
+  bienLuanBtn.addEventListener("click", async () => {
+    const bienLuanEl = document.getElementById("bienluan");
+    if (!bienLuanEl) return;
+    const tomtat = (document.getElementById("tomtat")?.value || "").trim();
+    if (!tomtat) { alert("Hãy nhập tóm tắt bệnh án trước."); return; }
+    const { mainDiag, text } = _buildBienLuanContext();
+    const differential = (document.getElementById("chandoanpd")?.value || "").trim();
+    if (!mainDiag && !differential) { alert("Hãy nhập chẩn đoán chính hoặc chẩn đoán phân biệt trước."); return; }
+    if (bienLuanEl.value.trim() && !confirm("Ô biện luận đã có dữ liệu. Bạn muốn ghi đè không?")) return;
+    const oldText = bienLuanBtn.textContent;
+    try {
+      bienLuanBtn.disabled = true;
+      bienLuanBtn.textContent = "Đang biện luận...";
+      bienLuanEl.placeholder = "Đợi xíu, AI đang biện luận chẩn đoán...";
+      const systemPrompt = `Bạn là bác sĩ hỗ trợ viết phần biện luận bệnh án.
+Hãy biện luận chẩn đoán chính với các chẩn đoán phân biệt dựa trên dữ kiện bệnh án.
+Yêu cầu:
+- Viết theo đúng cấu trúc sau, mỗi chẩn đoán là một đoạn riêng:
+  Chẩn đoán có khả năng nhất: nêu chẩn đoán và các dữ kiện ủng hộ.
+  Chẩn đoán phân biệt có khả năng ít hơn: nêu chẩn đoán, dữ kiện ủng hộ nếu có, và cận lâm sàng cần làm/đã làm để loại trừ.
+  Chẩn đoán phân biệt có khả năng thứ 2: nêu chẩn đoán, dữ kiện ủng hộ nếu có, và cận lâm sàng cần làm/đã làm để loại trừ.
+  Nếu có thêm chẩn đoán phân biệt khác thì viết tiếp theo cùng cấu trúc.
+- Nêu yếu tố nguy cơ nếu có trong dữ kiện bệnh án.
+- Kết hợp kết quả cận lâm sàng đã có để củng cố hoặc loại trừ.
+- Viết bằng tiếng Việt, văn phong bệnh án, mạch lạc, không dùng bảng.
+- Không bịa dữ kiện không có trong bệnh án; nếu thiếu dữ kiện thì ghi là chưa ghi nhận/chưa đủ dữ kiện.
+Chỉ trả về nội dung biện luận, không thêm tiêu đề.`;
+      const response = await fetch(CHAT_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages })
+        body: JSON.stringify({ messages: [{ role: "system", content: systemPrompt }, { role: "user", content: `Dữ kiện bệnh án:\n${text}` }] })
       });
-
       const raw = await response.text();
       if (!response.ok) throw new Error(`HTTP ${response.status}: ${raw.slice(0, 200)}`);
-
       let data;
-      try { data = JSON.parse(raw); } catch (_) {
-        throw new Error(`Server không trả JSON. Nhận: ${raw.slice(0, 200)}`);
-      }
-
-      const reply = (data && typeof data.answer === "string" && data.answer.trim())
-        ? data.answer.trim()
-        : "";
-
-      if (!reply) return;
-
-      const parsed = _extractJsonFromText(reply);
-      const diagRaw = parsed?.chandoan_xacdinh || parsed?.chandoan || parsed?.diagnosis || reply;
-      const huongRaw = parsed?.huong_dieu_tri || parsed?.huongdieutri || parsed?.treatment || "";
-
-      const finalDiag = _stripHistoryIfMissing(tomtat, _stripPatientPrefix(diagRaw));
-      _setTextareaValue(xacdinhEl, finalDiag);
-
-      const huongEl = document.getElementById("huongdieutri");
-      if (huongEl && huongRaw) {
-        const huongFmt = _formatHuongDieuTriList(huongRaw);
-        _setTextareaValue(huongEl, huongFmt);
-      }
+      try { data = JSON.parse(raw); } catch (_) { throw new Error(`Server không trả JSON. Nhận: ${raw.slice(0, 200)}`); }
+      const reply = (data && typeof data.answer === "string" && data.answer.trim()) ? data.answer.trim() : "";
+      if (reply) _setBienLuanValue(bienLuanEl, reply);
     } catch (err) {
-      console.warn("Final diagnosis AI failed:", err);
+      console.warn("Bien luan AI failed:", err);
+      alert("AI biện luận đang lỗi. Bạn thử lại sau nha.");
     } finally {
-      _setDiagPlaceholders(false, { cls: false, final: true });
-      diagBtn.disabled = false;
+      bienLuanBtn.disabled = false;
+      bienLuanBtn.textContent = oldText || "AI biện luận";
+      bienLuanEl.placeholder = "";
     }
   });
 }

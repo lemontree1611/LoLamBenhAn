@@ -1288,6 +1288,92 @@ function _initClsSearch() {
   });
 }
 
+function _getBienLuanField(id, label) {
+  const value = (document.getElementById(id)?.value || "").trim();
+  return value ? `${label}:\n${value}` : "";
+}
+
+function _setBienLuanValue(el, value) {
+  el.value = String(value || "").trim();
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function _buildBienLuanContext() {
+  const mainDiag = (document.getElementById("chandoanxacdinh")?.value || "").trim()
+    || (document.getElementById("chandoanso")?.value || "").trim();
+  const parts = [
+    _getBienLuanField("tomtat", "Tóm tắt bệnh án"),
+    _getBienLuanField("benhsu_nhapvien", "Bệnh sử nhập viện"),
+    _getBienLuanField("benhsu_khamthai", "Quá trình khám thai"),
+    _getBienLuanField("tiensu", "Tiền sử/yếu tố nguy cơ"),
+    _getBienLuanField("tongtrang", "Toàn trạng"),
+    _getBienLuanField("timmach", "Tuần hoàn"),
+    _getBienLuanField("hopho", "Hô hấp"),
+    _getBienLuanField("than", "Thận - tiết niệu"),
+    _getBienLuanField("thankinh", "Thần kinh"),
+    _getBienLuanField("cokhop", "Cơ - xương - khớp"),
+    _getBienLuanField("coquankhac", "Cơ quan khác"),
+    _getBienLuanField("khamchuyenkhoa", "Khám chuyên khoa"),
+    _getBienLuanField("cls_dalam", "Cận lâm sàng đã làm"),
+    _getBienLuanField("ketqua", "Kết quả cận lâm sàng"),
+    mainDiag ? `Chẩn đoán chính:\n${mainDiag}` : "",
+    _getBienLuanField("chandoanpd", "Chẩn đoán phân biệt")
+  ].filter(Boolean);
+  return { mainDiag, text: parts.join("\n\n") };
+}
+
+const bienLuanBtn = document.getElementById("btn-bienluan-ai");
+if (bienLuanBtn) {
+  bienLuanBtn.addEventListener("click", async () => {
+    const bienLuanEl = document.getElementById("bienluan");
+    if (!bienLuanEl) return;
+    const tomtat = (document.getElementById("tomtat")?.value || "").trim();
+    if (!tomtat) { alert("Hãy nhập tóm tắt bệnh án trước."); return; }
+    const { mainDiag, text } = _buildBienLuanContext();
+    const differential = (document.getElementById("chandoanpd")?.value || "").trim();
+    if (!mainDiag && !differential) { alert("Hãy nhập chẩn đoán chính hoặc chẩn đoán phân biệt trước."); return; }
+    if (bienLuanEl.value.trim() && !confirm("Ô biện luận đã có dữ liệu. Bạn muốn ghi đè không?")) return;
+    const oldText = bienLuanBtn.textContent;
+    try {
+      bienLuanBtn.disabled = true;
+      bienLuanBtn.textContent = "Đang biện luận...";
+      bienLuanEl.placeholder = "Đợi xíu, AI đang biện luận chẩn đoán...";
+      const systemPrompt = `Bạn là bác sĩ hỗ trợ viết phần biện luận bệnh án.
+Hãy biện luận chẩn đoán chính với các chẩn đoán phân biệt dựa trên dữ kiện bệnh án.
+Yêu cầu:
+- Viết theo đúng cấu trúc sau, mỗi chẩn đoán là một đoạn riêng:
+  Chẩn đoán có khả năng nhất: nêu chẩn đoán và các dữ kiện ủng hộ.
+  Chẩn đoán phân biệt có khả năng ít hơn: nêu chẩn đoán, dữ kiện ủng hộ nếu có, và cận lâm sàng cần làm/đã làm để loại trừ.
+  Chẩn đoán phân biệt có khả năng thứ 2: nêu chẩn đoán, dữ kiện ủng hộ nếu có, và cận lâm sàng cần làm/đã làm để loại trừ.
+  Nếu có thêm chẩn đoán phân biệt khác thì viết tiếp theo cùng cấu trúc.
+- Nêu yếu tố nguy cơ nếu có trong dữ kiện bệnh án.
+- Kết hợp kết quả cận lâm sàng đã có để củng cố hoặc loại trừ.
+- Viết bằng tiếng Việt, văn phong bệnh án, mạch lạc, không dùng bảng.
+- Không bịa dữ kiện không có trong bệnh án; nếu thiếu dữ kiện thì ghi là chưa ghi nhận/chưa đủ dữ kiện.
+Chỉ trả về nội dung biện luận, không thêm tiêu đề.`;
+      const response = await fetch(CHAT_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [{ role: "system", content: systemPrompt }, { role: "user", content: `Dữ kiện bệnh án:\n${text}` }] })
+      });
+      const raw = await response.text();
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${raw.slice(0, 200)}`);
+      let data;
+      try { data = JSON.parse(raw); } catch (_) { throw new Error(`Server không trả JSON. Nhận: ${raw.slice(0, 200)}`); }
+      const reply = (data && typeof data.answer === "string" && data.answer.trim()) ? data.answer.trim() : "";
+      if (reply) _setBienLuanValue(bienLuanEl, reply);
+    } catch (err) {
+      console.warn("Bien luan AI failed:", err);
+      alert("AI biện luận đang lỗi. Bạn thử lại sau nha.");
+    } finally {
+      bienLuanBtn.disabled = false;
+      bienLuanBtn.textContent = oldText || "AI biện luận";
+      bienLuanEl.placeholder = "";
+    }
+  });
+}
+
 function normalizeMathForChat(text = "") {
   return String(text)
     .replace(/\r\n/g, "\n")

@@ -1410,6 +1410,18 @@ input[type="number"] {
   background: #1c5aa0;
 }
 
+#btn-bienluan-ai{
+  transform: translateY(3px);
+}
+
+#btn-bienluan-ai:hover{
+  transform: translateY(2px);
+}
+
+#btn-bienluan-ai:active{
+  transform: translateY(3px);
+}
+
 /* Keep CLS AI button inline-sized on mobile */
 @media (max-width: 640px){
   .cls-ai-btn{
