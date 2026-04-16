@@ -58,6 +58,45 @@ html, body {
   overscroll-behavior: none;
 }
 
+/* Lightweight lazy reveal */
+.reveal-enabled .reveal-item {
+  opacity: 0;
+  transform: translate3d(0, 14px, 0) scale(.985);
+  transition:
+    opacity 520ms cubic-bezier(.22,1,.36,1) var(--reveal-delay, 0ms),
+    transform 520ms cubic-bezier(.22,1,.36,1) var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+.reveal-enabled .reveal-item.reveal-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+.reveal-enabled .reveal-fade-item {
+  opacity: 0;
+  transition: opacity 420ms ease var(--reveal-delay, 0ms);
+  will-change: opacity;
+}
+
+.reveal-enabled .reveal-fade-item.reveal-visible {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-enabled .reveal-item {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+    will-change: auto !important;
+  }
+  .reveal-enabled .reveal-fade-item {
+    opacity: 1 !important;
+    transition: none !important;
+    will-change: auto !important;
+  }
+}
+
 /* ── Hidden util ── */
 .hidden { display: none !important; }
 

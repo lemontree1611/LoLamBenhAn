@@ -15,6 +15,66 @@ line-height: 1.6;
   color: #1d1d1f;
 }
 
+.form-enter body > h1,
+.form-enter body > .small,
+.form-enter #share-notice,
+.form-enter #benhanForm {
+  opacity: 0;
+  transform: translate3d(0, 34px, 0) scale(.965);
+  will-change: opacity, transform;
+}
+
+.form-enter .topbar {
+  opacity: 0;
+  will-change: opacity;
+}
+
+.form-enter.form-enter-active body > h1,
+.form-enter.form-enter-active body > .small,
+.form-enter.form-enter-active #share-notice,
+.form-enter.form-enter-active #benhanForm {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  transition:
+    opacity 760ms cubic-bezier(.22,1,.36,1),
+    transform 760ms cubic-bezier(.22,1,.36,1);
+}
+
+.form-enter.form-enter-active .topbar {
+  opacity: 1;
+  transition: opacity 620ms ease;
+}
+
+.form-enter.form-enter-active body > h1 { transition-delay: 30ms; }
+.form-enter.form-enter-active body > .small { transition-delay: 90ms; }
+.form-enter.form-enter-active #share-notice { transition-delay: 130ms; }
+.form-enter.form-enter-active #benhanForm { transition-delay: 170ms; }
+
+/* Lightweight lazy reveal */
+.reveal-enabled .reveal-item {
+  opacity: 0;
+  transform: translate3d(0, 24px, 0) scale(.975);
+  transition:
+    opacity 720ms cubic-bezier(.22,1,.36,1) var(--reveal-delay, 0ms),
+    transform 720ms cubic-bezier(.22,1,.36,1) var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+.reveal-enabled .reveal-item.reveal-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+.reveal-enabled .reveal-fade-item {
+  opacity: 0;
+  transition: opacity 620ms ease var(--reveal-delay, 0ms);
+  will-change: opacity;
+}
+
+.reveal-enabled .reveal-fade-item.reveal-visible {
+  opacity: 1;
+}
+
 /* Typography */
 h1 {
   text-align: center;
@@ -1118,8 +1178,33 @@ input[type="number"] {
 
 /* prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce){
+  body > h1,
+  body > .small,
+  #share-notice,
+  #benhanForm{
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+    will-change: auto !important;
+  }
+  .topbar{
+    opacity: 1 !important;
+    transition: none !important;
+    will-change: auto !important;
+  }
   #chat-panel{ transition: none; }
   .tb-btn{ transition: none; }
+  .reveal-enabled .reveal-item{
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+    will-change: auto !important;
+  }
+  .reveal-enabled .reveal-fade-item{
+    opacity: 1 !important;
+    transition: none !important;
+    will-change: auto !important;
+  }
 }
 
 

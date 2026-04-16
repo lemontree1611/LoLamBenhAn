@@ -306,9 +306,31 @@ h1{
   box-shadow:var(--shadow);
   position:relative;
 }
+.comments-section.comments-prep{
+  opacity:0;
+  transform:translate3d(0, 18px, 0) scale(.99);
+}
+.comments-section.comments-prep.comments-enter{
+  opacity:1;
+  transform:translate3d(0, 0, 0) scale(1);
+  transition:
+    opacity 560ms cubic-bezier(.22,1,.36,1),
+    transform 560ms cubic-bezier(.22,1,.36,1);
+}
 .comments-list > .loading{display:none}
 .comment-item{position:relative;padding:20px 20px 44px 20px;border-bottom:1px solid rgba(0,0,0,.06);display:block;background:rgba(255,255,255,.9)}
 .comment-item:last-child{border-bottom:none}
+.comment-item-enter{
+  opacity:0;
+  transform:translate3d(0, 10px, 0);
+}
+.comment-item-enter.is-visible{
+  opacity:1;
+  transform:translate3d(0, 0, 0);
+  transition:
+    opacity 420ms cubic-bezier(.22,1,.36,1) var(--comment-delay, 0ms),
+    transform 420ms cubic-bezier(.22,1,.36,1) var(--comment-delay, 0ms);
+}
 .comment-main{min-width:0}
 .comment-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px}
 .comment-author{font-weight:760;font-size:1rem}
@@ -358,6 +380,25 @@ h1{
 
 .empty-state,.loading{text-align:center;padding:40px 20px;color:var(--muted2)}
 
+/* Lightweight lazy reveal */
+.reveal-enabled [data-reveal]{
+  opacity:0;
+  transform:translate3d(0, 14px, 0) scale(.985);
+  transition:
+    opacity 520ms cubic-bezier(.22,1,.36,1) var(--reveal-delay, 0ms),
+    transform 520ms cubic-bezier(.22,1,.36,1) var(--reveal-delay, 0ms);
+  will-change:opacity,transform;
+}
+.reveal-enabled [data-reveal].reveal-visible{
+  opacity:1;
+  transform:translate3d(0, 0, 0) scale(1);
+}
+
+footer{
+  content-visibility:auto;
+  contain-intrinsic-size:auto 80px;
+}
+
 @keyframes skeletonShimmer{
   from{background-position:200% 0}
   to{background-position:-200% 0}
@@ -365,6 +406,12 @@ h1{
 @media (prefers-reduced-motion:reduce){
   .card,.page-btn,.submit-btn{transition:none!important}
   .skeleton-line{animation:none!important}
+  .reveal-enabled [data-reveal]{
+    opacity:1!important;
+    transform:none!important;
+    transition:none!important;
+    will-change:auto!important;
+  }
 }
 
 /* =========================
@@ -443,6 +490,12 @@ h1{
   .tab-toggle-slider{ transition:none !important; }
   .tab-toggle-btn{ transition:none !important; }
   .tab-panels > .card-grid.tab-panel-in{ animation:none !important; }
+  .comments-section,
+  .comment-item-enter{
+    opacity:1!important;
+    transform:none!important;
+    transition:none!important;
+  }
 }
 
 footer{

@@ -42,11 +42,24 @@
     }
     </script>
 
-    <script src="source/theme.js"></script>
+    <script>
+    (function () {
+        try {
+            var theme = localStorage.getItem("lolambenhan-theme") === "dark" ? "dark" : "light";
+            document.documentElement.setAttribute("data-theme", theme);
+            document.documentElement.style.colorScheme = theme;
+        } catch (_) {
+            document.documentElement.setAttribute("data-theme", "light");
+            document.documentElement.style.colorScheme = "light";
+        }
+        document.documentElement.classList.add("reveal-enabled");
+    })();
+    </script>
+    <link rel="stylesheet" href="source/trangchu.css?v=1.0.2">
     <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQmj7drT8_gPK2zwTd5CMdWRNdIQmHNP2T9Kg&s">
     <title>LoLamBenhAn - Hỗ trợ sinh viên Y khoa làm bệnh án nhanh chóng</title>
+    <script defer src="source/theme.js"></script>
     <script defer src="https://cloud.umami.is/script.js" data-website-id="d50ebc58-08ea-422c-bb38-4a34b3f50862"></script>
-    <link rel="stylesheet" href="source/trangchu.css?v=1.0.2">
 
     <style>
         /* Admin delete button (fallback styles if CSS file doesn't define it) */
@@ -175,7 +188,7 @@
         </header>
 
         <!-- Pill toggle: Tứ trụ ↔ CK lẻ -->
-        <div class="tab-toggle-wrap">
+        <div class="tab-toggle-wrap" data-reveal>
             <div class="tab-toggle">
                 <div class="tab-toggle-slider"></div>
                 <button class="tab-toggle-btn active" data-tab="tutu">Tứ trụ</button>
@@ -187,12 +200,12 @@
         <!-- Tứ trụ: Nội khoa, Tiền phẫu, Hậu phẫu, Sản khoa, Phụ khoa, Nhi khoa -->
         <div class="tab-panels" id="tab-panels">
         <div class="card-grid is-active" id="grid-tutu">
-            <a href="tutru/noikhoa/" class="card"><h3>Nội khoa</h3><p>Bệnh án dành cho sinh viên Y khoa</p></a>
-            <a href="tutru/tienphau/" class="card"><h3>Tiền phẫu</h3><p>Bệnh án dành cho sinh viên Y khoa</p></a>
-            <a href="tutru/hauphau/" class="card"><h3>Hậu phẫu</h3><p>Bệnh án dành cho sinh viên Y khoa</p></a>
-            <a href="tutru/sankhoa/" class="card"><h3>Sản khoa</h3><p>Bệnh án dành cho sinh viên Y khoa</p></a>
-            <a href="tutru/phukhoa/" class="card"><h3>Phụ khoa</h3><p>Bệnh án dành cho sinh viên Y khoa</p></a>
-            <a href="tutru/nhikhoa/" class="card"><h3>Nhi khoa</h3><p>Bệnh án dành cho sinh viên Y khoa</p></a>
+            <a href="tutru/noikhoa/" class="card" data-reveal><h3>Nội khoa</h3><p>Bệnh án dành cho sinh viên Y khoa</p></a>
+            <a href="tutru/tienphau/" class="card" data-reveal><h3>Tiền phẫu</h3><p>Bệnh án dành cho sinh viên Y khoa</p></a>
+            <a href="tutru/hauphau/" class="card" data-reveal><h3>Hậu phẫu</h3><p>Bệnh án dành cho sinh viên Y khoa</p></a>
+            <a href="tutru/sankhoa/" class="card" data-reveal><h3>Sản khoa</h3><p>Bệnh án dành cho sinh viên Y khoa</p></a>
+            <a href="tutru/phukhoa/" class="card" data-reveal><h3>Phụ khoa</h3><p>Bệnh án dành cho sinh viên Y khoa</p></a>
+            <a href="tutru/nhikhoa/" class="card" data-reveal><h3>Nhi khoa</h3><p>Bệnh án dành cho sinh viên Y khoa</p></a>
         </div>
 
         <!-- CK lẻ: GMHS -->
@@ -209,7 +222,7 @@
         </div>
 
         <!-- Comments Section -->
-        <div class="comments-section">
+        <div class="comments-section comments-prep" id="comments-section">
             <h2 class="comments-title">Góp ý cho Admin</h2>
 
             <div class="comment-form">
@@ -394,10 +407,10 @@
             const commentsList = document.getElementById('comments-list');
 
             if (comments.length === 0) {
-                commentsList.innerHTML = '<div class="empty-state">Chưa có góp ý nào. Hãy là người đầu tiên góp ý!</div>';
+                commentsList.innerHTML = '<div class="empty-state comment-item-enter">Chưa có góp ý nào. Hãy là người đầu tiên góp ý!</div>';
             } else {
-                commentsList.innerHTML = pageComments.map(comment => `
-                    <div class="comment-item">
+                commentsList.innerHTML = pageComments.map((comment, index) => `
+                    <div class="comment-item comment-item-enter" style="--comment-delay:${Math.min(index, 4) * 45}ms">
                         <div class="comment-main">
                             <div class="comment-header">
                                 <span class="comment-author">${escapeHtml(comment.username)}</span>
@@ -411,6 +424,52 @@
             }
 
             renderPagination();
+            revealRenderedComments();
+        }
+
+        function revealRenderedComments() {
+            const section = document.getElementById('comments-section');
+            if (section && !section.classList.contains('comments-enter')) return;
+
+            const items = document.querySelectorAll('.comment-item-enter');
+            if (!items.length) return;
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    items.forEach(item => item.classList.add('is-visible'));
+                });
+            });
+        }
+
+        function revealCommentsSection() {
+            const section = document.getElementById('comments-section');
+            if (!section) return;
+
+            function showSection() {
+                section.classList.add('comments-enter');
+                revealRenderedComments();
+            }
+
+            if (!('IntersectionObserver' in window)) {
+                showSection();
+                return;
+            }
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (!entry.isIntersecting) return;
+                    observer.unobserve(section);
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(showSection);
+                    });
+                });
+            }, {
+                root: null,
+                rootMargin: '0px 0px -12% 0px',
+                threshold: 0.12
+            });
+
+            observer.observe(section);
         }
 
         function renderPagination() {
@@ -700,7 +759,65 @@
 })();
 // =============================================
 
-        loadComments();
+// ===== Lazy reveal: Apple-like, lightweight =====
+let revealObserver = null;
+
+function prepareRevealElements(scope = document) {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const elements = Array.from(scope.querySelectorAll('[data-reveal]'))
+        .filter(el => !el.classList.contains('reveal-visible'));
+
+    if (!elements.length) return;
+
+    if (reduceMotion || !('IntersectionObserver' in window)) {
+        elements.forEach(el => el.classList.add('reveal-visible'));
+        return;
+    }
+
+    if (!revealObserver) return;
+
+    elements.forEach((el, index) => {
+        if (!el.style.getPropertyValue('--reveal-delay')) {
+            el.style.setProperty('--reveal-delay', `${Math.min(index, 5) * 42}ms`);
+        }
+        revealObserver.observe(el);
+    });
+}
+
+function initLazyReveal() {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (reduceMotion || !('IntersectionObserver' in window)) {
+        document.querySelectorAll('[data-reveal]').forEach(el => el.classList.add('reveal-visible'));
+        return;
+    }
+
+    revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (!entry.isIntersecting) return;
+            entry.target.classList.add('reveal-visible');
+            entry.target.addEventListener('transitionend', () => {
+                entry.target.removeAttribute('data-reveal');
+                entry.target.style.removeProperty('--reveal-delay');
+                entry.target.style.willChange = 'auto';
+            }, { once: true });
+            revealObserver.unobserve(entry.target);
+        });
+    }, {
+        root: null,
+        rootMargin: '0px 0px -8% 0px',
+        threshold: 0.08
+    });
+
+    prepareRevealElements();
+}
+// =============================================
+
+        requestAnimationFrame(() => {
+            initLazyReveal();
+            revealCommentsSection();
+            setTimeout(loadComments, 0);
+        });
     </script>
 </body>
 </html>
