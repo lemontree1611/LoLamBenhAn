@@ -7,6 +7,10 @@ const WebSocket = require("ws");
 const express = require("express");
 const cors = require("cors");
 const crypto = require("crypto");
+const fs = require("fs/promises");
+const os = require("os");
+const path = require("path");
+const { execFile } = require("child_process");
 const { Pool } = require("pg");
 const { OAuth2Client } = require("google-auth-library");
 const { v2: cloudinary } = require("cloudinary");
@@ -139,6 +143,48 @@ function withTimeout(promise, ms, message) {
   ]);
 }
 
+function execFileAsync(command, args, opts = {}) {
+  return new Promise((resolve, reject) => {
+    execFile(command, args, opts, (error, stdout, stderr) => {
+      if (error) {
+        error.stdout = stdout;
+        error.stderr = stderr;
+        reject(error);
+        return;
+      }
+      resolve({ stdout, stderr });
+    });
+  });
+}
+
+function getLibreOfficeCandidates() {
+  return String(process.env.LIBREOFFICE_BIN || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .concat([
+      "soffice",
+      "libreoffice",
+      "C:\\Program Files\\LibreOffice\\program\\soffice.exe",
+      "C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe"
+    ]);
+}
+
+async function findLibreOfficeBinary() {
+  const timeoutMs = envMs("LIBREOFFICE_CHECK_TIMEOUT_MS", 5000);
+  for (const candidate of getLibreOfficeCandidates()) {
+    try {
+      await withTimeout(
+        execFileAsync(candidate, ["--version"], { windowsHide: true }),
+        timeoutMs,
+        "LibreOffice version check timed out"
+      );
+      return candidate;
+    } catch (_) {}
+  }
+  return null;
+}
+
 async function getDbHealth(timeoutMs) {
   if (!pool) {
     return {
@@ -181,6 +227,86 @@ async function handleHealthCheck(req, res) {
 }
 
 app.get("/healthz", handleHealthCheck);
+
+app.post(
+  "/convert/docx-to-pdf",
+  express.raw({
+    type: [
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/octet-stream"
+    ],
+    limit: process.env.DOCX_CONVERT_LIMIT || "12mb"
+  }),
+  async (req, res) => {
+    const startedAt = Date.now();
+    const input = Buffer.isBuffer(req.body) ? req.body : null;
+    if (!input || input.length === 0) {
+      return res.status(400).json({ error: "Missing DOCX body" });
+    }
+
+    const soffice = await findLibreOfficeBinary();
+    if (!soffice) {
+      return res.status(503).json({
+        error: "LibreOffice not installed",
+        detail: "Server cần cài LibreOffice/soffice để chuyển DOCX sang PDF."
+      });
+    }
+
+    const workDir = await fs.mkdtemp(path.join(os.tmpdir(), "docx-pdf-"));
+    const inputPath = path.join(workDir, "input.docx");
+    const outputPath = path.join(workDir, "input.pdf");
+    const profileDir = path.join(workDir, "lo-profile");
+    const timeoutMs = envMs("DOCX_CONVERT_TIMEOUT_MS", 45000);
+
+    try {
+      await fs.writeFile(inputPath, input);
+      await fs.mkdir(profileDir, { recursive: true });
+
+      await withTimeout(
+        execFileAsync(
+          soffice,
+          [
+            "--headless",
+            "--nologo",
+            "--nofirststartwizard",
+            "--norestore",
+            `-env:UserInstallation=file:///${profileDir.replace(/\\/g, "/")}`,
+            "--convert-to",
+            "pdf",
+            "--outdir",
+            workDir,
+            inputPath
+          ],
+          {
+            cwd: workDir,
+            windowsHide: true,
+            maxBuffer: 1024 * 1024 * 4
+          }
+        ),
+        timeoutMs,
+        "DOCX to PDF conversion timed out"
+      );
+
+      const pdf = await fs.readFile(outputPath);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Length", String(pdf.length));
+      res.setHeader("X-Convert-Latency-Ms", String(Date.now() - startedAt));
+      return res.status(200).send(pdf);
+    } catch (e) {
+      console.error("[convert] docx-to-pdf failed", {
+        error: e?.message,
+        stderr: e?.stderr,
+        stdout: e?.stdout
+      });
+      return res.status(500).json({
+        error: "DOCX to PDF conversion failed",
+        detail: String(e?.message || e)
+      });
+    } finally {
+      fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    }
+  }
+);
 
 // ================== POSTGRES (COMMENTS + HOICHAN) ==================
 const DATABASE_URL = process.env.DATABASE_URL || "";

@@ -525,40 +525,159 @@ button.secondary:hover {
   100% { opacity: 0.2; }
 }
 
-/* Loading Overlay */
-#loadingOverlay {
+/* Export format popup */
+.export-format-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  display: none;
+  inset: 0;
+  display: flex;
   align-items: center;
   justify-content: center;
-  flex-direction: column;
-  z-index: 2000;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 7000;
+  transition: opacity 220ms ease, visibility 220ms ease;
 }
 
-.spinner {
-  width: 50px;
-  height: 50px;
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
+.export-format-backdrop.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.export-format-sheet {
+  position: relative;
+  width: min(360px, 100%);
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.86);
+  color: #1d1d1f;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
+  transform: translateY(14px) scale(0.96);
+  opacity: 0;
+  transition:
+    transform 260ms cubic-bezier(.22,1,.36,1),
+    opacity 220ms ease;
+}
+
+.export-format-backdrop.show .export-format-sheet {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+.export-format-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0;
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  background: rgba(120, 120, 128, 0.14);
+  color: #1d1d1f;
+  box-shadow: none;
+  font-size: 22px;
+  line-height: 1;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+.export-format-close:hover {
+  background: rgba(120, 120, 128, 0.22);
+  transform: none;
 }
 
-#loadingOverlay p {
-  color: white;
-  font-size: 16px;
-  font-weight: 500;
-  margin-top: 20px;
+.export-format-kicker {
+  margin: 0 34px 4px 0;
+  color: #6e6e73;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.export-format-sheet h2 {
+  margin: 0 34px 18px 0;
+  color: #1d1d1f;
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 1.18;
+  letter-spacing: 0;
+}
+
+.export-format-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.export-format-choice {
+  min-width: 0;
+  width: 100%;
+  padding: 16px 10px 14px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #1d1d1f;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.export-format-choice:hover {
+  background: rgba(255, 255, 255, 0.96);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+}
+
+.export-format-choice:active {
+  transform: translateY(0);
+}
+
+.export-format-choice svg {
+  width: 48px;
+  height: 48px;
+  display: block;
+}
+
+.export-format-choice span {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+:root[data-theme="dark"] .export-format-backdrop {
+  background: rgba(0, 0, 0, 0.52);
+}
+
+:root[data-theme="dark"] .export-format-sheet {
+  background: rgba(30, 34, 43, 0.94);
+  color: #f5f7fb;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+:root[data-theme="dark"] .export-format-sheet h2 {
+  color: #f5f7fb;
+}
+
+:root[data-theme="dark"] .export-format-kicker {
+  color: #98a2b3;
+}
+
+:root[data-theme="dark"] .export-format-close,
+:root[data-theme="dark"] .export-format-choice {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f5f7fb;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+:root[data-theme="dark"] .export-format-choice:hover,
+:root[data-theme="dark"] .export-format-close:hover {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 /* ===========================
@@ -574,7 +693,7 @@ button.secondary:hover {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  z-index: 6000; /* cao hơn loadingOverlay(2000) và chat */
+  z-index: 6000; /* cao hơn topbar/chat */
   opacity: 0;
   visibility: hidden;
   pointer-events: none;

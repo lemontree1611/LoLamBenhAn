@@ -378,11 +378,7 @@ document.addEventListener('keydown', (e) => {
 //  EXPORT DOCX (A4, 2cm margins, TNR 14, 1.5 line)
 // ===============================
 async function generateDocx() {
-  const overlay = document.getElementById('loadingOverlay');
-
   try {
-    if (overlay) overlay.style.display = 'flex';
-
     const data = getFormData();
     const dateNow = new Date().toLocaleString('vi-VN');
 
@@ -650,12 +646,10 @@ async function generateDocx() {
     });
 
     const blob = await docx.Packer.toBlob(doc);
-    saveAs(blob, `${data.hoten || 'benhan_tienphau'}.docx`);
+    saveAs(blob, `${data.hoten || 'benhan'}.docx`);
   } catch (err) {
     alert("⚠️ Lỗi: " + (err?.message || err));
     console.error(err);
-  } finally {
-    if (overlay) overlay.style.display = 'none';
   }
 }
 
@@ -677,7 +671,7 @@ function resetForm() {
 // ===============================
 //  TOPBAR ACTIONS (Export / Preview / Reset)
 // ===============================
-document.getElementById("btn-export")?.addEventListener("click", generateDocx);
+document.getElementById("btn-export")?.addEventListener("click", openExportFormatPopup);
 document.getElementById("btn-preview")?.addEventListener("click", openPreview);
 document.getElementById("btn-reset")?.addEventListener("click", resetForm);
 

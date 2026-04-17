@@ -1,4 +1,4 @@
-// ===============================
+﻿// ===============================
 //  AUTO AGE + BMI
 // ===============================
 const namsinhInput = document.getElementById('namsinh');
@@ -591,11 +591,7 @@ document.addEventListener('keydown', (e) => {
 //  EXPORT DOCX (A4, 2cm margins, TNR 14, 1.5 line)
 // ===============================
 async function generateDocx() {
-  const overlay = document.getElementById('loadingOverlay');
-
   try {
-    if (overlay) overlay.style.display = 'flex';
-
     const data = getFormData();
     const dateNow = new Date().toLocaleString('vi-VN');
 
@@ -866,8 +862,6 @@ async function generateDocx() {
   } catch (err) {
     alert("⚠️ Lỗi: " + (err?.message || err));
     console.error(err);
-  } finally {
-    if (overlay) overlay.style.display = 'none';
   }
 }
 
@@ -886,14 +880,14 @@ function resetForm() {
 
 // ===============================
 //  TOOLBAR (Top Glass Bar)
-//  - Giữ nguyên logic cũ: generateDocx / openPreview / resetForm
+//  - Giữ nguyên logic cũ: popup xuất / openPreview / resetForm
 // ===============================
 document.addEventListener('DOMContentLoaded', () => {
   const bExport = document.getElementById('btn-export');
   const bPreview = document.getElementById('btn-preview');
   const bReset = document.getElementById('btn-reset');
 
-  if (bExport) bExport.addEventListener('click', () => generateDocx());
+  if (bExport) bExport.addEventListener('click', () => openExportFormatPopup());
   if (bPreview) bPreview.addEventListener('click', () => openPreview());
   if (bReset) bReset.addEventListener('click', () => resetForm());
 });

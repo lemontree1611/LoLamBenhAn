@@ -6,7 +6,7 @@
   <title>Sản khoa</title>
   <script src="../../source/theme.js"></script>
   <script src="../../source/form-enter.js?v=1.0.8"></script>
-  <link rel="stylesheet" href="../../source/style.css?v=1.0.6">
+  <link rel="stylesheet" href="../../source/style.css?v=1.0.7">
   <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQmj7drT8_gPK2zwTd5CMdWRNdIQmHNP2T9Kg&s">
 
   <!-- Thư viện tạo DOCX -->
@@ -35,7 +35,7 @@
       <span>Chia sẻ</span>
     </button>
 
-<button type="button" class="tb-btn" id="btn-export" title="Xuất file Word">
+<button type="button" class="tb-btn" id="btn-export" title="Xuất file">
       <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
         <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
         <path d="M14 3v5h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
@@ -78,7 +78,7 @@
 </style>
 
 <h1>Form BỆNH ÁN SẢN KHOA</h1>
-<p class="small">Nhập thông tin rồi nhấn <strong>XUẤT FILE WORD</strong> để lưu bệnh án hoàn chỉnh về máy.</p>
+<p class="small">Nhập thông tin rồi nhấn <strong>XUẤT FILE</strong> để lưu bệnh án hoàn chỉnh về máy.</p>
 
 <div id="share-notice"></div>
 <!-- ✅ ĐỒNG BỘ: main.js resetForm() đang reset theo #benhanForm -->
@@ -395,8 +395,8 @@ b) Khám trong:
   </div>
 
   <div class="actions">
-    <!-- ✅ ĐỒNG BỘ: main.js có generateDocx / openPreview / resetForm -->
-    <button id="btnExport" type="button" onclick="generateDocx()">📄 Xuất file Word</button>
+    <!-- ✅ ĐỒNG BỘ: main.js có popup xuất / openPreview / resetForm -->
+    <button id="btnExport" type="button" onclick="openExportFormatPopup()">📄 Xuất file</button>
     <button id="btnPreview" type="button" class="secondary" onclick="openPreview()">🔍 Xem trước</button>
     <button id="btnReset" type="button" class="secondary" onclick="resetForm()">🧽 Xoá hết</button>
   </div>
@@ -445,15 +445,11 @@ b) Khám trong:
   </div>
 </div>
 
-<div id="loadingOverlay">
-  <div class="spinner"></div>
-  <p>Đang tạo file DOCX...</p>
-</div>
-  
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script src="../../source/export-format.js?v=1.1.0"></script>
 <script src="main.js?v=1.0.3"></script>
 
 </body>
