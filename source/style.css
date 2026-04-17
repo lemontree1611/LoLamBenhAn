@@ -525,113 +525,94 @@ button.secondary:hover {
   100% { opacity: 0.2; }
 }
 
-/* Export format popup */
-.export-format-backdrop {
+/* Export format dropdown */
+.export-format-menu {
   position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(0, 0, 0, 0.34);
-  backdrop-filter: blur(18px) saturate(150%);
-  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  z-index: 3999;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.62);
+  color: #1d1d1f;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  overflow: hidden;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  z-index: 7000;
-  transition: opacity 220ms ease, visibility 220ms ease;
+  transform: translateY(-16px);
+  transform-origin: var(--export-menu-arrow-left, 50%) top;
+  transition:
+    transform 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.22s ease,
+    visibility 0.22s ease;
 }
 
-.export-format-backdrop.show {
+.export-format-menu::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: calc(var(--export-menu-arrow-left, 50%) - 6px);
+  width: 12px;
+  height: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.68);
+  border-top: 1px solid rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.62);
+  transform: rotate(45deg);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+}
+
+.export-format-menu.show {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
-}
-
-.export-format-sheet {
-  position: relative;
-  width: min(360px, 100%);
-  padding: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.86);
-  color: #1d1d1f;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
-  transform: translateY(14px) scale(0.96);
-  opacity: 0;
-  transition:
-    transform 260ms cubic-bezier(.22,1,.36,1),
-    opacity 220ms ease;
-}
-
-.export-format-backdrop.show .export-format-sheet {
-  transform: translateY(0) scale(1);
-  opacity: 1;
-}
-
-.export-format-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  padding: 0;
-  border-radius: 50%;
-  background: rgba(120, 120, 128, 0.14);
-  color: #1d1d1f;
-  box-shadow: none;
-  font-size: 22px;
-  line-height: 1;
-}
-
-.export-format-close:hover {
-  background: rgba(120, 120, 128, 0.22);
-  transform: none;
+  transform: translateY(0);
 }
 
 .export-format-kicker {
-  margin: 0 34px 4px 0;
-  color: #6e6e73;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.export-format-sheet h2 {
-  margin: 0 34px 18px 0;
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  padding: 9px 11px;
   color: #1d1d1f;
-  font-size: 22px;
+  font-size: 13px;
   font-weight: 650;
-  line-height: 1.18;
   letter-spacing: 0;
-}
-
-.export-format-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  background: rgba(255, 255, 255, 0.10);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .export-format-choice {
+  position: relative;
+  z-index: 1;
+  width: calc(100% - 14px);
   min-width: 0;
-  width: 100%;
-  padding: 16px 10px 14px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  margin: 7px 7px 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.70);
   color: #1d1d1f;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.06);
   display: flex;
-  flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
   gap: 8px;
 }
 
+.export-format-choice + .export-format-choice {
+  margin-top: 6px;
+  margin-bottom: 7px;
+}
+
 .export-format-choice:hover {
-  background: rgba(255, 255, 255, 0.96);
+  background: rgba(255, 255, 255, 0.86);
   transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
 }
 
 .export-format-choice:active {
@@ -639,44 +620,42 @@ button.secondary:hover {
 }
 
 .export-format-choice svg {
-  width: 48px;
-  height: 48px;
+  width: 26px;
+  height: 26px;
   display: block;
+  flex: 0 0 26px;
 }
 
 .export-format-choice span {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0;
 }
 
-:root[data-theme="dark"] .export-format-backdrop {
-  background: rgba(0, 0, 0, 0.52);
-}
-
-:root[data-theme="dark"] .export-format-sheet {
-  background: rgba(30, 34, 43, 0.94);
+:root[data-theme="dark"] .export-format-menu {
+  background: rgba(15, 23, 42, 0.86);
   color: #f5f7fb;
   border-color: rgba(255, 255, 255, 0.12);
 }
 
-:root[data-theme="dark"] .export-format-sheet h2 {
-  color: #f5f7fb;
+:root[data-theme="dark"] .export-format-menu::before {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(15, 23, 42, 0.86);
 }
 
 :root[data-theme="dark"] .export-format-kicker {
-  color: #98a2b3;
+  color: #f5f7fb;
+  background: rgba(255, 255, 255, 0.08);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
-:root[data-theme="dark"] .export-format-close,
 :root[data-theme="dark"] .export-format-choice {
   background: rgba(255, 255, 255, 0.08);
   color: #f5f7fb;
   border-color: rgba(255, 255, 255, 0.1);
 }
 
-:root[data-theme="dark"] .export-format-choice:hover,
-:root[data-theme="dark"] .export-format-close:hover {
+:root[data-theme="dark"] .export-format-choice:hover {
   background: rgba(255, 255, 255, 0.12);
 }
 
