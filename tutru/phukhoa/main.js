@@ -859,6 +859,15 @@ function scrollChatToBottom(smooth = false) {
   requestAnimationFrame(updateChatJumpButton);
 }
 
+function autoResizeChatInput() {
+  if (!chatInput) return;
+  chatInput.style.height = "auto";
+  const maxHeight = 140;
+  const nextHeight = Math.min(chatInput.scrollHeight, maxHeight);
+  chatInput.style.height = Math.max(nextHeight, 42) + "px";
+  chatInput.style.overflowY = chatInput.scrollHeight > maxHeight ? "auto" : "hidden";
+}
+
 function wrapMarkdownTables(container) {
   if (!container) return;
   if (!window.matchMedia("(max-width: 768px)").matches) return;
@@ -1804,7 +1813,9 @@ async function sendMessage() {
 
   // UI: user message
   chatMessages.innerHTML += `<div class="msg user">${escapeHtml(text)}</div>`;
+  scrollChatToBottom(true);
   chatInput.value = "";
+  autoResizeChatInput();
 
   // disable khi đang gửi
   chatInput.disabled = true;
@@ -1893,8 +1904,13 @@ async function sendMessage() {
 
 if (chatSend) chatSend.onclick = sendMessage;
 if (chatInput) {
-  chatInput.addEventListener("keypress", e => {
-    if (e.key === "Enter") sendMessage();
+  autoResizeChatInput();
+  chatInput.addEventListener("input", autoResizeChatInput);
+  chatInput.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
   });
 }
 

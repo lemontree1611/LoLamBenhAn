@@ -589,7 +589,7 @@ function renderMessage(m) {
   }
 
   messagesEl.appendChild(row);
-  scrollToBottom();
+  if (mine) scrollToBottom();
 }
 
 function renderMessageCompact(m) {
@@ -715,7 +715,7 @@ function renderMessageCompact(m) {
 
   row.appendChild(bubble);
   messagesEl.appendChild(row);
-  scrollToBottom();
+  if (mine) scrollToBottom();
 }
 
 function resetChatUI() {
