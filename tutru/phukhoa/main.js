@@ -1829,6 +1829,7 @@ async function sendMessage() {
     <span class="typing-dots"><span></span><span></span><span></span></span>
   `;
   chatMessages.appendChild(loadingEl);
+  scrollChatToBottom(true);
   updateChatJumpButton();
 
   // đổi text sau 10s

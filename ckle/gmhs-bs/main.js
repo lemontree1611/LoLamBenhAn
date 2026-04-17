@@ -1004,6 +1004,7 @@ async function sendMessage() {
     <span class="typing-dots"><span></span><span></span><span></span></span>
   `;
   chatMessages.appendChild(loadingEl);
+  scrollChatToBottom(true);
   updateChatJumpButton();
 
   const timeoutId = setTimeout(() => {
