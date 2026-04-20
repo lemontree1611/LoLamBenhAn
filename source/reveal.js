@@ -10,9 +10,7 @@
     "#benhanForm",
     ".loginScreen .homeBtnLogin",
     ".loginCard",
-    ".loginHighlight",
-    ".chatShell > .messages",
-    ".chatShell > .composer"
+    ".loginHighlight"
   ];
 
   let observer = null;

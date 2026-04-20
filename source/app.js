@@ -458,7 +458,6 @@ function appendLinkPreviews(container, text) {
 function showChat() {
   loginScreen.classList.add("hidden");
   chatScreen.classList.remove("hidden");
-  window.LoLamReveal?.refresh?.(chatScreen);
   autoResizeInput();
 }
 function showLogin() {
