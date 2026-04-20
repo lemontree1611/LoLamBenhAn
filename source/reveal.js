@@ -96,7 +96,13 @@
   window.LoLamReveal = {
     refresh(scope) {
       if (!observer || reduceMotion.matches) return;
-      collectRevealItems(scope).forEach((el) => observer.observe(el));
+      collectRevealItems(scope).forEach((el) => {
+        if (isInViewport(el)) {
+          reveal(el);
+        } else {
+          observer.observe(el);
+        }
+      });
     }
   };
 
