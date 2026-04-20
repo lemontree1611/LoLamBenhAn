@@ -984,6 +984,36 @@ const SHARE_ROOM_CLEANUP_INTERVAL_HOURS = Math.max(
 const SHARE_ROOM_CLEANUP_ENABLED =
   String(process.env.SHARE_ROOM_CLEANUP_ENABLED || "true").toLowerCase() !== "false";
 
+const ALLOWED_SHARE_FORM_TYPES = new Set([
+  "ckle/gmhs-bs",
+  "ckle/gmhs-sv",
+  "tutru/hauphau",
+  "tutru/nhikhoa",
+  "tutru/noikhoa",
+  "tutru/phukhoa",
+  "tutru/sankhoa",
+  "tutru/tienphau"
+]);
+
+function normalizeShareFormType(value) {
+  const formType = String(value || "")
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/\/index\.html?$/i, "")
+    .replace(/^\/+|\/+$/g, "")
+    .toLowerCase();
+  return ALLOWED_SHARE_FORM_TYPES.has(formType) ? formType : null;
+}
+
+function isAllowedWsOrigin(origin) {
+  if (!origin) return true;
+  try {
+    return corsOrigins.includes(new URL(origin).origin);
+  } catch (_) {
+    return false;
+  }
+}
+
 // ---------- HOI CHAN: DB helpers ----------
 async function hoichanInitTable() {
   if (!pool) {
@@ -1540,7 +1570,13 @@ wss.on("connection", (ws) => {
 
     if (type === "join") {
       const room = getRoom(roomId);
-      const formType = String(msg.formType || "").trim() || null;
+      const formType = normalizeShareFormType(msg.formType);
+      if (msg.formType && !formType) {
+        console.warn("[share] ignored invalid form type", {
+          room: roomId,
+          formType: String(msg.formType).slice(0, 120)
+        });
+      }
       if (formType) {
         room.formType = formType;
         ws._formType = formType;
@@ -1658,7 +1694,13 @@ wss.on("connection", (ws) => {
         }
         room.lastState = msg.payload;
       }
-      const formType = String(msg.formType || "").trim() || null;
+      const formType = normalizeShareFormType(msg.formType);
+      if (msg.formType && !formType) {
+        console.warn("[share] ignored invalid form type", {
+          room: roomId,
+          formType: String(msg.formType).slice(0, 120)
+        });
+      }
       if (formType) {
         room.formType = formType;
         ws._formType = formType;
@@ -1740,6 +1782,14 @@ wss.on("connection", (ws) => {
 // ================== UPGRADE ROUTER (QUAN TRỌNG) ==================
 server.on("upgrade", (req, socket, head) => {
   const pathname = new URL(req.url, "http://localhost").pathname;
+  const origin = req.headers.origin || "";
+
+  if (!isAllowedWsOrigin(origin)) {
+    socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
+    socket.destroy();
+    console.warn("[ws] rejected origin", origin);
+    return;
+  }
 
   // Route hội chẩn
   if (pathname === HOICHAN_PATH) {
